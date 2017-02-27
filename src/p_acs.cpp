@@ -4937,6 +4937,11 @@ enum EACSFunctions
 	// [BB] Out of order ZDoom backport.
 	ACSF_GetActorFloorTexture = 204,
 
+	// [EX] out of order ZDoom backport
+	ACSF_Floor = 207,
+	ACSF_Ceil,
+	ACSF_Round,
+
 	// [BB] Skulltag functions
 	ACSF_ResetMap = 100,
 	ACSF_PlayerIsSpectator,
@@ -6871,6 +6876,16 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 			}
 			break;
 		}
+
+		case ACSF_Floor:
+			return args[0] & ~0xffff;
+
+		case ACSF_Ceil:
+			return (args[0] & ~0xffff) + 0x10000;
+
+		case ACSF_Round:
+			return (args[0] + 32768) & ~0xffff;
+
 
 		case ACSF_IsZandronumExtended:
 			return 1;
