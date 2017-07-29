@@ -4971,6 +4971,9 @@ enum EACSFunctions
 	ACSF_SetDeadSpectator,
 	ACSF_SetActivatorToPlayer,
 
+	// Zandronum Extended
+	ACSF_IsZandronumExtended = 12000,
+
 	// ZDaemon
 	ACSF_GetTeamScore = 19620,	// (int team)
 	ACSF_SetTeamScore,			// (int team, int value)
@@ -6867,6 +6870,9 @@ doplaysound:			if (funcIndex == ACSF_PlayActorSound)
 			}
 			break;
 		}
+
+		case ACSF_IsZandronumExtended:
+			return 1;
 
 		default:
 			break;
