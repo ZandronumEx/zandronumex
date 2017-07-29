@@ -26,6 +26,8 @@ static void I_CheckNativeMouse ();
 bool GUICapture;
 static bool NativeMouse = true;
 
+bool fullscreenminimized = false;
+
 extern int paused;
 
 CVAR (Bool,  use_mouse,				true, CVAR_ARCHIVE|CVAR_GLOBALCONFIG)
@@ -287,6 +289,41 @@ static void I_CheckNativeMouse ()
 	}
 }
 
+bool I_ProcessSDLControls(const SDL_keysym &keysym)
+{
+	if (!(keysym.mod & KMOD_ALT))
+		return false;
+
+	bool status = false;
+	switch(keysym.sym)
+	{
+		case SDLK_RETURN:
+			status = true;
+			fullscreen = !fullscreen;
+			break;
+		case SDLK_F4:
+			if (!fullscreen) // it works in window mode
+				break;
+
+			status = true;
+			exit(0);
+			break;
+		case SDLK_TAB:
+			if (!fullscreen)
+				break;
+
+			fullscreenminimized = true;
+			fullscreen = false;
+			C_DoCommand ("menu_main");
+			SDL_WM_IconifyWindow();
+			status = true;
+			break;
+		default:
+			break;
+	}
+	return status;
+}
+
 void MessagePump (const SDL_Event &sev)
 {
 	static int lastx = 0, lasty = 0;
@@ -305,6 +342,21 @@ void MessagePump (const SDL_Event &sev)
 			{ // kill focus
 				FlushDIKState ();
 			}
+			// if alt+tab selected
+			if (sev.active.gain == 1 && fullscreenminimized)
+			{
+				fullscreenminimized = false;
+				fullscreen = true;
+			}
+		// if selected in the panel
+		if (sev.active.state == SDL_APPACTIVE)
+		{
+			if (sev.active.gain == 0 && fullscreenminimized)
+			{
+				fullscreenminimized = false;
+				fullscreen = true;
+			}
+		}
 			if (( NETWORK_GetState() != NETSTATE_CLIENT ) || ( cl_soundwhennotactive == false ))	// [EP]
 				S_SetSoundPaused(sev.active.gain);
 		}
@@ -373,8 +425,9 @@ void MessagePump (const SDL_Event &sev)
 			D_PostEvent(&event);
 		}
 		break;
-
 	case SDL_KEYDOWN:
+		if(I_ProcessSDLControls(sev.key.keysym))
+			break;
 	case SDL_KEYUP:
 		if (sev.key.keysym.sym >= SDLK_LAST)
 			break;
