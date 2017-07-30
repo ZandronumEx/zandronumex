@@ -69,6 +69,15 @@ LISTMENU "MainMenu"
 	IfGame(Doom, Strife, Chex)
 	{
 		PatchItem "M_NGAME", "n", "PlayerclassMenu"
+		IfGame(Doom)
+		{
+			PatchItem "M_MULTI", "m", "ZA_MultiplayerOptions"
+		}
+		IfGame(Strife, Chex) // else doesn't work for some reason
+		{
+			TextItem "$MNU_MULTIPLAYER", "m", "ZA_MultiplayerOptions"
+		}
+
 		ifOption(SwapMenu)
 		{
 			PatchItem "M_LOADG", "l", "LoadGameMenu"
@@ -91,6 +100,7 @@ LISTMENU "MainMenu"
 	IfGame(Heretic, Hexen)
 	{
 		TextItem "$MNU_NEWGAME", "n", "PlayerclassMenu"
+		TextItem "$MNU_MULTIPLAYER", "m", "ZA_MultiplayerOptions"
 		TextItem "$MNU_OPTIONS", "o", "OptionsMenu"
 		TextItem "$MNU_GAMEFILES", "g", "GameFilesMenu"
 		TextItem "$MNU_INFO", "i", "ReadThisMenu"
