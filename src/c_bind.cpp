@@ -102,7 +102,8 @@ static const FBinding DefBindings[] =
 	{ "tab", "togglemap" },
 	{ "pause", "pause" },
 	{ "sysrq", "screenshot" },
-	{ "t", "say" },	// [BC] messagemode changed to "say"
+	{ "t", "messagemode" },	// [EX] "say" doesn't show in controls menu
+	{ "y", "messagemode2" }, // [EX] bind team chat to y by default
 	{ "\\", "+showscores" },
 	{ "f12", "spynext" },
 	{ "mwheeldown", "weapnext" },
