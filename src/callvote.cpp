@@ -267,10 +267,6 @@ bool CALLVOTE_VoteYes( ULONG ulPlayer )
 	if (( NETWORK_GetState() == NETSTATE_SERVER ) && ( SERVER_IsValidClient( ulPlayer ) == false ))
 		return ( false );
 
-	// [RC] If this is our vote, hide the vote screen soon.
-	if (( NETWORK_GetState( ) == NETSTATE_CLIENT ) && ( static_cast<LONG>(ulPlayer) == consoleplayer ) )
-		g_ulShowVoteScreenTicks = 1 * TICRATE;
-
 	// Also, don't allow spectator votes if the server has them disabled.
 	if (( NETWORK_GetState( ) == NETSTATE_SERVER ) && ( sv_nocallvote == 2 && players[ulPlayer].bSpectating ))
 	{
@@ -347,10 +343,6 @@ bool CALLVOTE_VoteNo( ULONG ulPlayer )
 	// [TP] Don't allow improper clients vote (they could be calling this without having been authenticated)
 	if (( NETWORK_GetState() == NETSTATE_SERVER ) && ( SERVER_IsValidClient( ulPlayer ) == false ))
 		return ( false );
-
-	// [RC] If this is our vote, hide the vote screen soon.
-	if (( NETWORK_GetState( ) == NETSTATE_CLIENT ) && ( static_cast<LONG>(ulPlayer) == consoleplayer ) )
-		g_ulShowVoteScreenTicks = 1 * TICRATE;
 
 	// [RC] Vote callers can cancel their votes by voting "no".
 	if ( ulPlayer == g_ulVoteCaller && ( NETWORK_GetState( ) == NETSTATE_SERVER ))
