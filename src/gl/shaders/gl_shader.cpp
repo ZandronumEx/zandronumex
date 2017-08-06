@@ -94,7 +94,7 @@ bool FShader::Load(const char * name, const char * vert_prog_lump, const char * 
 		FString vp_comb;
 		FString fp_comb;
 		vp_comb = defines;
-		if (gl.shadermodel < 4) 
+		if (gl.shadermodel < 4)
 		{
 			vp_comb << "#define NO_SM4\n";
 		}
@@ -234,19 +234,19 @@ bool FShader::Bind(float Speed)
 FShaderContainer::FShaderContainer(const char *ShaderName, const char *ShaderPath)
 {
 	const char * shaderdefines[] = {
-		"#define NO_GLOW\n#define NO_DESATURATE\n",
+		"#define NO_GLOW\n#define NO_DESATURATE\n", // no shaders
 		"#define NO_DESATURATE\n",
 		"#define NO_GLOW\n",
 		"\n",
-		"#define NO_GLOW\n#define NO_DESATURATE\n#define DYNLIGHT\n",
+		"#define NO_GLOW\n#define NO_DESATURATE\n#define DYNLIGHT\n", // sm 2
 		"#define NO_DESATURATE\n#define DYNLIGHT\n",
 		"#define NO_GLOW\n#define DYNLIGHT\n",
 		"\n#define DYNLIGHT\n",
-		"#define NO_GLOW\n#define NO_DESATURATE\n#define SOFTLIGHT\n",
+		"#define NO_GLOW\n#define NO_DESATURATE\n#define SOFTLIGHT\n", // sm 3
 		"#define NO_DESATURATE\n#define SOFTLIGHT\n",
 		"#define NO_GLOW\n#define SOFTLIGHT\n",
 		"\n#define SOFTLIGHT\n",
-		"#define NO_GLOW\n#define NO_DESATURATE\n#define DYNLIGHT\n#define SOFTLIGHT\n",
+		"#define NO_GLOW\n#define NO_DESATURATE\n#define DYNLIGHT\n#define SOFTLIGHT\n", // sm 4
 		"#define NO_DESATURATE\n#define DYNLIGHT\n#define SOFTLIGHT\n",
 		"#define NO_GLOW\n#define DYNLIGHT\n#define SOFTLIGHT\n",
 		"\n#define DYNLIGHT\n#define SOFTLIGHT\n"
@@ -320,7 +320,7 @@ FShaderContainer::FShaderContainer(const char *ShaderName, const char *ShaderPat
 				FString str;
 				if ((i&4) != 0)
 				{
-					if (gl.maxuniforms < 1024 || gl.shadermodel != 4)
+					if (gl.maxuniforms < 1024 || gl.shadermodel < 3)
 					{
 						shader[i] = NULL;
 						continue;
@@ -331,7 +331,7 @@ FShaderContainer::FShaderContainer(const char *ShaderName, const char *ShaderPat
 				}
 				if ((i&8) == 0)
 				{
-					if (gl.shadermodel != 4)
+					if (gl.shadermodel < 3)
 					{
 						shader[i] = NULL;
 						continue;

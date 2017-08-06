@@ -83,12 +83,12 @@ CVAR(Bool, gl_brightfog, false, CVAR_ARCHIVE);
 
 bool gl_BrightmapsActive()
 {
-	return gl.shadermodel == 4 || (gl.shadermodel == 3 && gl_brightmap_shader);
+	return gl_brightmap_shader;
 }
 
 bool gl_GlowActive()
 {
-	return gl.shadermodel == 4 || (gl.shadermodel == 3 && gl_glow_shader);
+	return gl_glow_shader;
 }
 
 //==========================================================================

@@ -96,7 +96,7 @@ void gl_SetupMenu()
 		if (gl_dynlight_shader) gl_dynlight_shader = false;
 	}
 
-	if (gl.shadermodel != 3)
+	if (gl.shadermodel < 3)
 	{
 		// The shader menu will only be visible on SM3. 
 		// SM2 won't use shaders unless unavoidable (and then it's automatic) and SM4 will always use shaders.

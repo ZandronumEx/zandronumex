@@ -140,6 +140,37 @@ static void InitContext()
 
 //==========================================================================
 //
+//
+//
+//==========================================================================
+
+void gl_PrintStartupLog()
+{
+	Printf ("GL_VENDOR: %s\n", glGetString(GL_VENDOR));
+	Printf ("GL_RENDERER: %s\n", glGetString(GL_RENDERER));
+	Printf ("GL_VERSION: %s\n", glGetString(GL_VERSION));
+	Printf ("GL_SHADING_LANGUAGE_VERSION: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+	Printf ("GL_EXTENSIONS: %s\n", glGetString(GL_EXTENSIONS));
+	int v;
+
+	glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &v);
+	Printf ("Max. texture units: %d\n", v);
+	glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &v);
+	Printf ("Max. fragment uniforms: %d\n", v);
+	gl.maxuniforms = v; // move it?
+	glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &v);
+	Printf ("Max. vertex uniforms: %d\n", v);
+	glGetIntegerv(GL_MAX_VARYING_FLOATS, &v);
+	Printf ("Max. varying: %d\n", v);
+	glGetIntegerv(GL_MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS, &v);
+	Printf ("Max. combined uniforms: %d\n", v);
+	glGetIntegerv(GL_MAX_COMBINED_UNIFORM_BLOCKS, &v);
+	Printf ("Max. combined uniform blocks: %d\n", v);
+
+}
+
+//==========================================================================
+//
 // 
 //
 //==========================================================================
@@ -148,6 +179,7 @@ void gl_LoadExtensions()
 {
 	InitContext();
 	CollectExtensions();
+	gl_PrintStartupLog();
 
 	const char *version = (const char*)glGetString(GL_VERSION);
 
@@ -257,12 +289,16 @@ void gl_LoadExtensions()
 		// SM3 has shaders optional but they are off by default (they will have a performance impact
 		// SM2 only uses shaders for colormaps on camera textures and has no option to use them in general.
 		//     On SM2 cards the shaders will be too slow and show visual bugs (at least on GF 6800.)
-		if (strcmp((const char*)glGetString(GL_SHADING_LANGUAGE_VERSION), "1.3") >= 0) gl.shadermodel = 4;
-		else if (CheckExtension("GL_NV_GPU_shader4")) gl.shadermodel = 4;	// for pre-3.0 drivers that support GF8xxx.
-		else if (CheckExtension("GL_EXT_GPU_shader4")) gl.shadermodel = 4;	// for pre-3.0 drivers that support GF8xxx.
-		else if (CheckExtension("GL_NV_vertex_program3")) gl.shadermodel = 3;
-		else if (!strstr(gl.vendorstring, "NVIDIA")) gl.shadermodel = 3;
-		else gl.shadermodel = 2;	// Only for older NVidia cards which had notoriously bad shader support.
+		float shading_version = atof((const char*)glGetString(GL_SHADING_LANGUAGE_VERSION));
+		if (shading_version > 1.3)
+			gl.shadermodel = 2;
+		if (shading_version > 2)
+			gl.shadermodel = 3;
+		if (shading_version >= 4)
+			gl.shadermodel = 4;
+
+
+		Printf("gl.shadermodel=%d\n", gl.shadermodel);
 
 		// Command line overrides for testing and problem cases.
 		if (Args->CheckParm("-sm2") && gl.shadermodel > 2) gl.shadermodel = 2;
@@ -341,37 +377,6 @@ void gl_LoadExtensions()
 	glActiveTexture = (PFNGLACTIVETEXTUREPROC)myGetProcAddress("glActiveTextureARB");
 	glMultiTexCoord2f = (PFNGLMULTITEXCOORD2FPROC) myGetProcAddress("glMultiTexCoord2fARB");
 	glMultiTexCoord2fv = (PFNGLMULTITEXCOORD2FVPROC) myGetProcAddress("glMultiTexCoord2fvARB");
-}
-
-//==========================================================================
-//
-// 
-//
-//==========================================================================
-
-void gl_PrintStartupLog()
-{
-	Printf ("GL_VENDOR: %s\n", glGetString(GL_VENDOR));
-	Printf ("GL_RENDERER: %s\n", glGetString(GL_RENDERER));
-	Printf ("GL_VERSION: %s\n", glGetString(GL_VERSION));
-	Printf ("GL_SHADING_LANGUAGE_VERSION: %s\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
-	Printf ("GL_EXTENSIONS: %s\n", glGetString(GL_EXTENSIONS));
-	int v;
-
-	glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &v);
-	Printf ("Max. texture units: %d\n", v);
-	glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_COMPONENTS, &v);
-	Printf ("Max. fragment uniforms: %d\n", v);
-	if (gl.shadermodel == 4) gl.maxuniforms = v;
-	glGetIntegerv(GL_MAX_VERTEX_UNIFORM_COMPONENTS, &v);
-	Printf ("Max. vertex uniforms: %d\n", v);
-	glGetIntegerv(GL_MAX_VARYING_FLOATS, &v);
-	Printf ("Max. varying: %d\n", v);
-	glGetIntegerv(GL_MAX_COMBINED_FRAGMENT_UNIFORM_COMPONENTS, &v);
-	Printf ("Max. combined uniforms: %d\n", v);
-	glGetIntegerv(GL_MAX_COMBINED_UNIFORM_BLOCKS, &v);
-	Printf ("Max. combined uniform blocks: %d\n", v);
-
 }
 
 //==========================================================================
