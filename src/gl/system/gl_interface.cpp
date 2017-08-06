@@ -290,7 +290,7 @@ void gl_LoadExtensions()
 		// SM2 only uses shaders for colormaps on camera textures and has no option to use them in general.
 		//     On SM2 cards the shaders will be too slow and show visual bugs (at least on GF 6800.)
 		float shading_version = atof((const char*)glGetString(GL_SHADING_LANGUAGE_VERSION));
-		if (shading_version > 1.3)
+		if (shading_version > 1)
 			gl.shadermodel = 2;
 		if (shading_version > 2)
 			gl.shadermodel = 3;
