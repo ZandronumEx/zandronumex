@@ -64,6 +64,8 @@ public:
 		BigHeight = tex->GetScaledHeight();
 
 		DoCommonInit ();
+
+		lastDrawnWithMenuActive = false;
 	}
 
 	~DDoomStatusBar ()
@@ -92,8 +94,6 @@ public:
 
 	void AttachToPlayer (player_t *player)
 	{
-		player_t *oldplayer = CPlayer;
-
 		DBaseStatusBar::AttachToPlayer (player);
 		if ( NETWORK_GetState( ) != NETSTATE_SINGLE )
 		{
@@ -118,7 +118,7 @@ public:
 
 		if (state == HUD_Fullscreen)
 		{
-			SB_state = screen->GetPageCount ();
+			ST_SetNeedRefresh();
 			if ( cl_stfullscreenhud )
 				DrawFullScreenStuffST( );
 			else
@@ -144,9 +144,11 @@ public:
 			if (CPlayer->inventorytics > 0 && !(level.flags & LEVEL_NOINVENTORYBAR))
 			{
 				DrawInventoryBar ();
-				SB_state = screen->GetPageCount ();
+				ST_SetNeedRefresh();
 			}
 		}
+
+		lastDrawnWithMenuActive = ( menuactive != MENU_Off );
 	}
 
 private:
@@ -207,12 +209,19 @@ private:
 
 		StatusBarTex.Unload ();
 
-		SB_state = screen->GetPageCount ();
+		ST_SetNeedRefresh();
+	}
+
+	bool ForceRefresh ( ) const {
+		return ( automapactive || ( menuactive != MENU_Off ) || ( ( menuactive == MENU_Off && lastDrawnWithMenuActive ) ) );
 	}
 
 	void DrawMainBar ()
 	{
 		int amount;
+
+		if ( ForceRefresh() )
+			DrawImage (&StatusBarTex, 0, 0);
 
 		DrawAmmoStats ();
 		DrawFace ();
@@ -225,9 +234,9 @@ private:
 				OldPoints = CPlayer->lPointCount;
 				PointsRefresh = screen->GetPageCount ();
 			}
-			if (PointsRefresh)
+			if (PointsRefresh || ForceRefresh())
 			{
-				PointsRefresh--;
+				if ( PointsRefresh ) PointsRefresh--;
 				DrawNumber (OldPoints, 138/*110*/, 3, 2);
 			}
 		}
@@ -238,9 +247,9 @@ private:
 				OldFrags = CPlayer->fragcount;
 				FragsRefresh = screen->GetPageCount ();
 			}
-			if (FragsRefresh)
+			if (FragsRefresh || ForceRefresh())
 			{
-				FragsRefresh--;
+				if ( FragsRefresh ) FragsRefresh--;
 				DrawNumber (OldFrags, 138/*110*/, 3, 2);
 			}
 		}
@@ -252,9 +261,9 @@ private:
 			OldHealth = CPlayer->health;
 			HealthRefresh = screen->GetPageCount ();
 		}
-		if (HealthRefresh)
+		if (HealthRefresh || ForceRefresh())
 		{
-			HealthRefresh--;
+			if ( HealthRefresh ) HealthRefresh--;
 			// [RC] If we're spying someone and aren't allowed to see his stats, draw dashes instead of numbers.
 			if ( NETWORK_InClientMode() &&
 				( SERVER_IsPlayerAllowedToKnowHealth( consoleplayer, ULONG( CPlayer - players ) ) == false ))
@@ -274,9 +283,9 @@ private:
 			OldArmor = armorpoints;
 			ArmorRefresh = screen->GetPageCount ();
 		}
-		if (ArmorRefresh)
+		if (ArmorRefresh || ForceRefresh())
 		{
-			ArmorRefresh--;
+			if ( ArmorRefresh ) ArmorRefresh--;
 			// [RC] If we're spying someone and aren't allowed to see his stats, draw dashes instead of numbers.
 			if(( NETWORK_GetState( ) == NETSTATE_CLIENT ) && ( SERVER_IsPlayerAllowedToKnowHealth( consoleplayer, ULONG( CPlayer - players ) ) == false ))
 				DrawUnknownDashs(221, 3);
@@ -300,9 +309,9 @@ private:
 			OldActiveAmmo = amount;
 			ActiveAmmoRefresh = screen->GetPageCount ();
 		}
-		if (ActiveAmmoRefresh)
+		if (ActiveAmmoRefresh || ForceRefresh())
 		{
-			ActiveAmmoRefresh--;
+			if ( ActiveAmmoRefresh ) ActiveAmmoRefresh--;
 			// [RC] If we're spying someone and aren't allowed to see his stats, draw dashes instead of numbers.
 			if ( NETWORK_InClientMode() &&
 				( SERVER_IsPlayerAllowedToKnowHealth( consoleplayer, ULONG( CPlayer - players ) ) == false ))
@@ -357,9 +366,9 @@ private:
 
 		for (i = 0; i < 3; i++)
 		{
-			if (ArmsRefresh[i])
+			if (ArmsRefresh[i] || ForceRefresh())
 			{
-				ArmsRefresh[i]--;
+				if ( ArmsRefresh[i] ) ArmsRefresh[i]--;
 				int x = 111 + i * 12;
 
 				DrawArm (arms[i], i, x, 4, true);
@@ -444,9 +453,9 @@ private:
 		memcpy (OldAmmo, ammo, sizeof(ammo));
 		memcpy (OldMaxAmmo, maxammo, sizeof(ammo));
 
-		if (AmmoRefresh)
+		if (AmmoRefresh || ForceRefresh())
 		{
-			AmmoRefresh--;
+			if ( AmmoRefresh ) AmmoRefresh--;
 			DrawPartialImage (&StatusBarTex, 276, 4*3);
 			for (i = 0; i < 4; i++)
 			{
@@ -454,9 +463,9 @@ private:
 					DrSmallNumber (ammo[i], 276, 5 + 6*i);
 			}
 		}
-		if (MaxAmmoRefresh)
+		if (MaxAmmoRefresh || ForceRefresh())
 		{
-			MaxAmmoRefresh--;
+			if ( MaxAmmoRefresh ) MaxAmmoRefresh--;
 			DrawPartialImage (&StatusBarTex, 302, 4*3);
 			for (i = 0; i < 4; i++)
 			{
@@ -497,9 +506,9 @@ private:
 		}
 
 		// Draw keys that have changed since last time
-		if (KeysRefresh)
+		if (KeysRefresh || ForceRefresh())
 		{
-			KeysRefresh--;
+			if ( KeysRefresh ) KeysRefresh--;
 			DrawPartialImage (&StatusBarTex, 239, 8);
 
 			// Blue Keys
@@ -1416,6 +1425,7 @@ void DrawFullHUD_GameInformation()
 	int OldActiveAmmo;
 	int OldFrags;
 	int OldPoints;
+	bool lastDrawnWithMenuActive;
 
 	char HealthRefresh;
 	char ArmorRefresh;
