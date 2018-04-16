@@ -135,6 +135,7 @@ bool				CLIENT_GetAllowSendingOfUserInfo( void );
 void				CLIENT_SetAllowSendingOfUserInfo( bool bAllow );
 int					CLIENT_GetLatestServerGametic( void );
 void				CLIENT_SetLatestServerGametic( int latestServerGametic );
+int					CLIENT_GetServerGameticOffset( void );
 bool				CLIENT_GetFullUpdateIncomplete ( void );
 unsigned int		CLIENT_GetEndFullUpdateTic( void );
 const FString		&CLIENT_GetPlayerAccountName( int player );
@@ -186,10 +187,12 @@ void STACK_ARGS		CLIENT_PrintWarning( const char* format, ... ) GCCPRINTF( 1, 2 
 bool				CLIENT_ReadActorFromNetID( int netid, const PClass *subclass, bool allowNull, AActor *&actor,
 											   const char *commandName = "CLIENT_ReadActorFromNetID",
 											   const char *parameterName = "actor" );
-
+bool				CLIENT_HasRCONAccess();
 void				CLIENT_PREDICT_Construct( void );
+void				CLIENT_PREDICT_SetPosition( fixed_t X, fixed_t Y, fixed_t Z );
+void				CLIENT_PREDICT_SetVelocity( fixed_t X, fixed_t Y, fixed_t Z );
+void				CLIENT_PREDICT_SetJumpTics( int tics );
 void				CLIENT_PREDICT_PlayerPredict( void );
-void				CLIENT_PREDICT_SaveCmd( void );
 void				CLIENT_PREDICT_PlayerTeleported( void );
 bool				CLIENT_PREDICT_IsPredicting( void );
 

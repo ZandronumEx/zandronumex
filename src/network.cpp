@@ -487,7 +487,7 @@ void NETWORK_Construct( USHORT usPort, bool bAllocateLANSocket )
 		catch ( CRecoverableError& e )
 		{
 			// [TP] Might as well warn the user now that we're here.
-			Printf( "NETWORK_Construct: \\cGWARNING: Cannot open map %s: %s\n",
+			Printf( "NETWORK_Construct: " TEXTCOLOR_RED "WARNING: Cannot open map %s: %s\n",
 				info.mapname, e.GetMessage() );
 		}
 
@@ -992,21 +992,6 @@ void NETWORK_AddLumpForAuthentication( const LONG LumpNumber )
 
 //*****************************************************************************
 //
-void NETWORK_GenerateMapLumpMD5Hash( MapData *Map, const LONG LumpNumber, FString &MD5Hash )
-{
-	LONG lLumpSize = Map->Size( LumpNumber );
-	BYTE *pbData = new BYTE[lLumpSize];
-
-	// Dump the data from the lump into our data buffer.
-	Map->Read( LumpNumber, pbData );
-
-	// Perform the checksum on our buffer, and free it.
-	CMD5Checksum::GetMD5( pbData, lLumpSize, MD5Hash );
-	delete[] pbData;
-}
-
-//*****************************************************************************
-//
 void NETWORK_GenerateLumpMD5Hash( const int LumpNum, FString &MD5Hash )
 {
 	const int lumpSize = Wads.LumpLength (LumpNum);
@@ -1441,7 +1426,7 @@ static void network_InitPWADList( void )
 
 void network_Error( const char *pszError )
 {
-	Printf( "\\cd%s\n", pszError );
+	Printf( TEXTCOLOR_GREEN "%s\n", pszError );
 }
 
 //*****************************************************************************

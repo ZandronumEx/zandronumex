@@ -109,7 +109,6 @@
 #include "domination.h"
 #include "win32/g15/g15.h"
 #include "gl/dynlights/gl_dynlight.h"
-#include "unlagged.h"
 #include "p_3dmidtex.h"
 #include "a_lightning.h"
 #include "po_man.h"
@@ -708,24 +707,20 @@ void G_BuildTiccmd (ticcmd_t *cmd)
 		if (Button_Right.bDown)
 		{
 			G_AddViewAngle (angleturn[tspeed]);
-			LocalKeyboardTurner = true;
 		}
 		if (Button_Left.bDown)
 		{
 			G_AddViewAngle (-angleturn[tspeed]);
-			LocalKeyboardTurner = true;
 		}
 	}
 
 	if (Button_LookUp.bDown)
 	{
 		G_AddViewPitch (lookspeed[speed]);
-		LocalKeyboardTurner = true;
 	}
 	if (Button_LookDown.bDown)
 	{
 		G_AddViewPitch (-lookspeed[speed]);
-		LocalKeyboardTurner = true;
 	}
 
 	if (Button_MoveUp.bDown)
@@ -804,12 +799,10 @@ void G_BuildTiccmd (ticcmd_t *cmd)
 	if (joyaxes[JOYAXIS_Pitch] != 0)
 	{
 		G_AddViewPitch(joyint(joyaxes[JOYAXIS_Pitch] * 2048));
-		LocalKeyboardTurner = true;
 	}
 	if (joyaxes[JOYAXIS_Yaw] != 0)
 	{
 		G_AddViewAngle(joyint(-1280 * joyaxes[JOYAXIS_Yaw]));
-		LocalKeyboardTurner = true;
 	}
 
 	side -= joyint(sidemove[speed] * joyaxes[JOYAXIS_Side]);
@@ -908,7 +901,7 @@ void G_BuildTiccmd (ticcmd_t *cmd)
 //[Graf Zahl] This really helps if the mouse update rate can't be increased!
 CVAR (Bool,		smooth_mouse,	false,	CVAR_GLOBALCONFIG|CVAR_ARCHIVE)
 
-void G_AddViewPitch (int look)
+void G_AddViewPitch (int look, bool mouse)
 {
 	if (gamestate == GS_TITLELEVEL)
 	{
@@ -953,11 +946,11 @@ void G_AddViewPitch (int look)
 	}
 	if (look != 0)
 	{
-		LocalKeyboardTurner = smooth_mouse;
+		LocalKeyboardTurner = (!mouse || smooth_mouse);
 	}
 }
 
-void G_AddViewAngle (int yaw)
+void G_AddViewAngle (int yaw, bool mouse)
 {
 	if (gamestate == GS_TITLELEVEL)
 	{
@@ -973,7 +966,7 @@ void G_AddViewAngle (int yaw)
 	LocalViewAngle -= yaw;
 	if (yaw != 0)
 	{
-		LocalKeyboardTurner = smooth_mouse;
+		LocalKeyboardTurner = (!mouse || smooth_mouse);
 	}
 }
 
@@ -1721,9 +1714,6 @@ void G_Ticker ()
 
 		}
 
-		// [BB] Tick the unlagged module.
-		UNLAGGED_Tick( );
-
 		// [BB] Don't call P_Ticker on the server if there are no players.
 		// This significantly reduces CPU usage on maps with many monsters
 		// (of course only as long as there are no connected clients).
@@ -2157,6 +2147,12 @@ void G_PlayerReborn (int player, bool bGiveInventory)
 	p->~player_t();
 	::new(p) player_t;
 
+	// [Leo] This used to reset when re-constructing player_t.
+	if ( player == consoleplayer )
+	{
+		CLIENT_PREDICT_Construct();
+	}
+
 	p->fragcount = fragcount;
 	p->killcount = killcount;
 	p->itemcount = itemcount;
@@ -2293,7 +2289,8 @@ static fixed_t PlayersRangeFromSpot (FPlayerStart *spot)
 
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
-		if (!playeringame[i] || !players[i].mo || players[i].health <= 0)
+		// [Proteh] Skip spectators from the range check too
+		if (!playeringame[i] || players[i].bSpectating || !players[i].mo || players[i].health <= 0)
 			continue;
 
 		distance = P_AproxDistance (players[i].mo->x - spot->x,
@@ -2316,7 +2313,8 @@ static fixed_t TeamLMSPlayersRangeFromSpot( ULONG ulPlayer, FPlayerStart *spot )
 	ulNumSpots = 0;
 	for (i = 0; i < MAXPLAYERS; i++)
 	{
-		if (!playeringame[i] || !players[i].mo || players[i].health <= 0)
+		// [Proteh] Skip spectators too
+		if (!playeringame[i] || players[i].bSpectating || !players[i].mo || players[i].health <= 0)
 			continue;
 
 		// Ignore players on our team.
@@ -3721,6 +3719,18 @@ void GAME_ResetMap( bool bRunEnterScripts )
 		// If we're the server, tell clients to update their sky.
 		if (( bSendSkyUpdate ) && ( NETWORK_GetState( ) == NETSTATE_SERVER ))
 			SERVERCOMMANDS_SetMapSky( );
+
+		// [EP] Reset also the sky scroll speed if needed.
+		if ( level.skyspeed1 != pLevelInfo->skyspeed1 ) {
+			level.skyspeed1 = pLevelInfo->skyspeed1;
+			if ( NETWORK_GetState( ) == NETSTATE_SERVER )
+				SERVERCOMMANDS_SetMapSkyScrollSpeed( /*isSky1 =*/ true );
+		}
+		if ( level.skyspeed2 != pLevelInfo->skyspeed2 ) {
+			level.skyspeed2 = pLevelInfo->skyspeed2;
+			if ( NETWORK_GetState( ) == NETSTATE_SERVER )
+				SERVERCOMMANDS_SetMapSkyScrollSpeed( /*isSky1 =*/ false );
+		}
 	}
 
 	// Reset the number of monsters killed,  items picked up, and found secrets on the level.
@@ -3989,6 +3999,9 @@ void GAME_ResetMap( bool bRunEnterScripts )
 			// since it's being deleted.
 			if ( pActor->flags & MF_COUNTITEM )
 				level.total_items--;
+			// Same thing for the total secret count.
+			if ( pActor->flags5 & MF5_COUNTSECRET )
+				level.total_secrets--;
 
 			// Remove the old actor.
 			if ( ( NETWORK_GetState( ) == NETSTATE_SERVER )
@@ -4043,11 +4056,12 @@ void GAME_ResetMap( bool bRunEnterScripts )
 	// [BB] Restore the special gamemode actors that were not spawned by the map, e.g. terminator sphere or hellstone.
 	GAMEMODE_SpawnSpecialGamemodeThings();
 
-	// If we're the server, tell clients the new number of total items/monsters.
+	// If we're the server, tell clients the new number of total items/monsters/secrets.
 	if ( NETWORK_GetState( ) == NETSTATE_SERVER )
 	{
 		SERVERCOMMANDS_SetMapNumTotalMonsters( );
 		SERVERCOMMANDS_SetMapNumTotalItems( );
+		SERVERCOMMANDS_SetMapNumTotalSecrets( );
 	}
 
 	// Also, delete all floors, plats, etc. that are in progress.

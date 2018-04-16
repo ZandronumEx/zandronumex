@@ -190,6 +190,11 @@ void CALLVOTE_BeginVote( FString Command, FString Parameters, FString Reason, UL
 	// Play the announcer sound for this.
 	ANNOUNCER_PlayEntry( cl_announcer, "VoteNow" );
 
+	// [TP] If the reason contains color codes, make sure that the color codes
+	// are terminated properly.
+	if (( Reason.IndexOf( TEXTCOLOR_ESCAPE ) != -1 ) && ( Reason.Right( 2 ) != TEXTCOLOR_NORMAL ))
+		Reason += TEXTCOLOR_NORMAL;
+
 	// Create the vote console command.
 	g_VoteCommand = Command;
 	g_VoteCommand += " ";
@@ -217,9 +222,9 @@ void CALLVOTE_BeginVote( FString Command, FString Parameters, FString Reason, UL
 	{
 		FString	ReasonBlurb = ( g_VoteReason.Len( )) ? ( ", reason: \"" + g_VoteReason + "\"" ) : "";
 		if ( NETWORK_GetState( ) == NETSTATE_SERVER )
-			Printf( "%s\\c- (%s) has called a vote (\"%s\"%s).\n", players[ulPlayer].userinfo.GetName(), SERVER_GetClient( ulPlayer )->Address.ToString(), g_VoteCommand.GetChars(), ReasonBlurb.GetChars() );
+			Printf( "%s (%s) has called a vote (\"%s\"%s).\n", players[ulPlayer].userinfo.GetName(), SERVER_GetClient( ulPlayer )->Address.ToString(), g_VoteCommand.GetChars(), ReasonBlurb.GetChars() );
 		else
-			Printf( "%s\\c- has called a vote (\"%s\"%s).\n", players[ulPlayer].userinfo.GetName(), g_VoteCommand.GetChars(), ReasonBlurb.GetChars() );
+			Printf( "%s has called a vote (\"%s\"%s).\n", players[ulPlayer].userinfo.GetName(), g_VoteCommand.GetChars(), ReasonBlurb.GetChars() );
 	}
 
 	g_VoteState = VOTESTATE_INVOTE;
@@ -312,9 +317,9 @@ bool CALLVOTE_VoteYes( ULONG ulPlayer )
 
 	// Display the message in the console.
 	if ( NETWORK_GetState( ) == NETSTATE_SERVER )
-		Printf( "%s\\c- (%s) votes \"yes\".\n", players[ulPlayer].userinfo.GetName(), SERVER_GetClient( ulPlayer )->Address.ToString() );
+		Printf( "%s (%s) votes \"yes\".\n", players[ulPlayer].userinfo.GetName(), SERVER_GetClient( ulPlayer )->Address.ToString() );
 	else
-		Printf( "%s\\c- votes \"yes\".\n", players[ulPlayer].userinfo.GetName() );
+		Printf( "%s votes \"yes\".\n", players[ulPlayer].userinfo.GetName() );
 
 	// Nothing more to do here for clients.
 	if ( NETWORK_InClientMode() )
@@ -402,9 +407,9 @@ bool CALLVOTE_VoteNo( ULONG ulPlayer )
 
 	// Display the message in the console.
 	if ( NETWORK_GetState( ) == NETSTATE_SERVER )
-		Printf( "%s\\c- (%s) votes \"no\".\n", players[ulPlayer].userinfo.GetName(), SERVER_GetClient( ulPlayer )->Address.ToString() );
+		Printf( "%s (%s) votes \"no\".\n", players[ulPlayer].userinfo.GetName(), SERVER_GetClient( ulPlayer )->Address.ToString() );
 	else
-		Printf( "%s\\c- votes \"no\".\n", players[ulPlayer].userinfo.GetName() );
+		Printf( "%s votes \"no\".\n", players[ulPlayer].userinfo.GetName() );
 
 	// Nothing more to do here for clients.
 	if ( NETWORK_InClientMode() )
@@ -895,18 +900,19 @@ CUSTOM_CVAR( Int, sv_minvoters, 1, CVAR_ARCHIVE )
 	if ( self < 1 )
 		self = 1;
 }
-CVAR( Int, sv_nocallvote, 0, CVAR_ARCHIVE ); // 0 - everyone can call votes. 1 - nobody can. 2 - only players can.
-CVAR( Bool, sv_nokickvote, false, CVAR_ARCHIVE );
-CVAR( Bool, sv_noforcespecvote, false, CVAR_ARCHIVE );
-CVAR( Bool, sv_nomapvote, false, CVAR_ARCHIVE );
-CVAR( Bool, sv_nochangemapvote, false, CVAR_ARCHIVE );
-CVAR( Bool, sv_nofraglimitvote, false, CVAR_ARCHIVE );
-CVAR( Bool, sv_notimelimitvote, false, CVAR_ARCHIVE );
-CVAR( Bool, sv_nowinlimitvote, false, CVAR_ARCHIVE );
-CVAR( Bool, sv_noduellimitvote, false, CVAR_ARCHIVE );
-CVAR( Bool, sv_nopointlimitvote, false, CVAR_ARCHIVE );
-CVAR( Int, sv_votecooldown, 5, CVAR_ARCHIVE );
-CVAR( Int, sv_voteconnectwait, 0, CVAR_ARCHIVE );  // [RK] The amount of seconds after client connect to wait before voting
+
+CVAR( Int, sv_nocallvote, 0, CVAR_ARCHIVE | CVAR_SERVERINFO ); // 0 - everyone can call votes. 1 - nobody can. 2 - only players can.
+CVAR( Bool, sv_nokickvote, false, CVAR_ARCHIVE | CVAR_SERVERINFO );
+CVAR( Bool, sv_noforcespecvote, false, CVAR_ARCHIVE | CVAR_SERVERINFO );
+CVAR( Bool, sv_nomapvote, false, CVAR_ARCHIVE | CVAR_SERVERINFO );
+CVAR( Bool, sv_nochangemapvote, false, CVAR_ARCHIVE | CVAR_SERVERINFO );
+CVAR( Bool, sv_nofraglimitvote, false, CVAR_ARCHIVE | CVAR_SERVERINFO );
+CVAR( Bool, sv_notimelimitvote, false, CVAR_ARCHIVE | CVAR_SERVERINFO );
+CVAR( Bool, sv_nowinlimitvote, false, CVAR_ARCHIVE | CVAR_SERVERINFO );
+CVAR( Bool, sv_noduellimitvote, false, CVAR_ARCHIVE | CVAR_SERVERINFO );
+CVAR( Bool, sv_nopointlimitvote, false, CVAR_ARCHIVE | CVAR_SERVERINFO );
+CVAR( Int, sv_votecooldown, 5, CVAR_ARCHIVE | CVAR_SERVERINFO );
+CVAR( Int, sv_voteconnectwait, 0, CVAR_ARCHIVE | CVAR_SERVERINFO );  // [RK] The amount of seconds after client connect to wait before voting
 CVAR( Bool, cl_showfullscreenvote, false, CVAR_ARCHIVE );
 
 CCMD( callvote )

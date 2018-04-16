@@ -362,8 +362,6 @@ player_t::player_t()
 
 	// [BC] Initialize additonal ST properties.
 	memset( &ulMedalCount, 0, sizeof( ULONG ) * NUM_MEDALS );
-	memset( &ServerXYZ, 0, sizeof( fixed_t ) * 3 );
-	memset( &ServerXYZVel, 0, sizeof( fixed_t ) * 3 );
 }
 
 player_t &player_t::operator=(const player_t &p)
@@ -510,8 +508,6 @@ player_t &player_t::operator=(const player_t &p)
 	bIsBot = p.bIsBot;
 	bIgnoreChat = p.bIgnoreChat;
 	lIgnoreChatTicks = p.lIgnoreChatTicks;
-	memcpy(ServerXYZ, &p.ServerXYZ, sizeof( ServerXYZ ));
-	memcpy(ServerXYZVel, &p.ServerXYZVel, sizeof( ServerXYZVel ));
 	ulPing = p.ulPing;
 	ulPingAverages = p.ulPingAverages;
 	bReadyToGoOn = p.bReadyToGoOn;
@@ -2793,7 +2789,7 @@ CUSTOM_CVAR (Float, sv_aircontrol, 0.00390625f, CVAR_SERVERINFO|CVAR_NOSAVE)
 	}
 }
 
-void P_MovePlayer (player_t *player, ticcmd_t *cmd)
+void P_MovePlayer (player_t *player)
 {
 	// [BB] A client doesn't know enough about the other players to make their movement.
 	if ( NETWORK_InClientMode() &&
@@ -2802,6 +2798,7 @@ void P_MovePlayer (player_t *player, ticcmd_t *cmd)
 		return;
 	}
 
+	ticcmd_t *cmd = &player->cmd;
 	APlayerPawn *mo = player->mo;
 
 	// [Leo] cl_spectatormove is now applied here to avoid code duplication.
@@ -2967,6 +2964,10 @@ void P_MovePlayer (player_t *player, ticcmd_t *cmd)
 
 			player->mo->velz += JumpVelz;
 			player->jumpTics = ulJumpTicks;
+
+			// [Leo] Inform the client of the jumpTics change.
+			if ( NETWORK_GetState() == NETSTATE_SERVER )
+				SERVERCOMMANDS_SetLocalPlayerJumpTics( player - players );
 		}
 	}
 }		
@@ -3309,7 +3310,7 @@ void PLAYER_JoinGameFromSpectators( int iChar )
 
 	PLAYER_SpectatorJoinsGame( &players[consoleplayer] );
 	players[consoleplayer].camera = players[consoleplayer].mo;
-	Printf( "%s \\c-joined the game.\n", players[consoleplayer].userinfo.GetName() );
+	Printf( "%s joined the game.\n", players[consoleplayer].userinfo.GetName() );
 
 	// [BB] If players are supposed to be on teams, select one for the player now.
 	if ( GAMEMODE_GetCurrentFlags() & GMF_PLAYERSONTEAMS )
@@ -3379,7 +3380,7 @@ void P_CrouchMove(player_t * player, int direction)
 //
 //----------------------------------------------------------------------------
 
-void P_PlayerThink (player_t *player, ticcmd_t *pCmd)
+void P_PlayerThink (player_t *player)
 {
 	ticcmd_t *cmd;
 
@@ -3388,7 +3389,7 @@ void P_PlayerThink (player_t *player, ticcmd_t *pCmd)
 		// Just print an error if a bot tried to spawn.
 		if ( player->pSkullBot )
 		{
-			Printf( "%s \\c-left: No player %td start\n", player->userinfo.GetName(), player - players + 1 );
+			Printf( "%s left: No player %td start\n", player->userinfo.GetName(), player - players + 1 );
 			BOTS_RemoveBot( player - players, false );
 			return;
 		}
@@ -3496,12 +3497,7 @@ void P_PlayerThink (player_t *player, ticcmd_t *pCmd)
 	{
 		player->mo->flags &= ~MF_NOGRAVITY;
 	}
-
-	// If we're predicting, use the ticcmd we pass in.
-	if ( CLIENT_PREDICT_IsPredicting( ))
-		cmd = pCmd;
-	else
-		cmd = &player->cmd;
+	cmd = &player->cmd;
 
 	// Make unmodified copies for ACS's GetPlayerInput.
 	player->original_oldbuttons = player->original_cmd.buttons;
@@ -3704,7 +3700,7 @@ void P_PlayerThink (player_t *player, ticcmd_t *pCmd)
 	}
 	else
 	{
-		P_MovePlayer (player, cmd);
+		P_MovePlayer (player);
 
 		if (cmd->ucmd.upmove == -32768)
 		{ // Only land if in the air

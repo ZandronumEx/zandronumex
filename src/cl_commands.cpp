@@ -302,7 +302,7 @@ void CLIENTCOMMANDS_ClientMove( void )
 	NETWORK_WriteByte( &CLIENT_GetLocalBuffer( )->ByteStream, CLC_CLIENTMOVE );
 	NETWORK_WriteLong( &CLIENT_GetLocalBuffer( )->ByteStream, gametic );
 	// [CK] Send the server the latest known server-gametic
-	NETWORK_WriteLong( &CLIENT_GetLocalBuffer( )->ByteStream, CLIENT_GetLatestServerGametic( ) );
+	NETWORK_WriteLong( &CLIENT_GetLocalBuffer( )->ByteStream, CLIENT_GetLatestServerGametic( ) + CLIENT_GetServerGameticOffset( ) );
 
 	// Decide what additional information needs to be sent.
 	ulBits = 0;
@@ -750,4 +750,13 @@ void CLIENTCOMMANDS_SetVideoResolution()
 	NETWORK_WriteByte( &CLIENT_GetLocalBuffer( )->ByteStream, CLC_SETVIDEORESOLUTION );
 	NETWORK_WriteShort( &CLIENT_GetLocalBuffer( )->ByteStream, SCREENWIDTH );
 	NETWORK_WriteShort( &CLIENT_GetLocalBuffer( )->ByteStream, SCREENHEIGHT );
+}
+
+//*****************************************************************************
+// [TP]
+void CLIENTCOMMANDS_RCONSetCVar( const char *cvarName, const char *cvarValue )
+{
+	NETWORK_WriteByte( &CLIENT_GetLocalBuffer( )->ByteStream, CLC_RCONSETCVAR );
+	NETWORK_WriteString( &CLIENT_GetLocalBuffer( )->ByteStream, cvarName );
+	NETWORK_WriteString( &CLIENT_GetLocalBuffer( )->ByteStream, cvarValue );
 }

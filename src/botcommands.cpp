@@ -74,6 +74,7 @@
 #include "sv_commands.h"
 #include "sv_main.h"
 #include "team.h"
+#include "v_text.h"
 
 //*****************************************************************************
 //	PROTOTYPES
@@ -637,33 +638,29 @@ void BOTCMD_DoChatStringSubstitutions( CSkullBot *pBot, const char *pszInString,
 
 			if (( strnicmp( pszInString + 1, "player_damagedby", strlen( "player_damagedby" )) == 0 ) && ( pBot->m_ulLastPlayerDamagedBy != MAXPLAYERS ))
 			{
-				sprintf( pszOutString, "%s\\c-", players[pBot->m_ulLastPlayerDamagedBy].userinfo.GetName() );
+				sprintf( pszOutString, "%s", players[pBot->m_ulLastPlayerDamagedBy].userinfo.GetName() );
 				pszOutString += strlen ( players[pBot->m_ulLastPlayerDamagedBy].userinfo.GetName() );
-				pszOutString += strlen( "\\c-" );
 
 				pszInString += strlen( "player_damagedby" );
 			}
 			else if (( strnicmp( pszInString + 1, "player_enemy", strlen( "player_enemy" )) == 0 ) && ( pBot->m_ulPlayerEnemy != MAXPLAYERS ))
 			{
-				sprintf( pszOutString, "%s\\c-", players[pBot->m_ulPlayerEnemy].userinfo.GetName() );
+				sprintf( pszOutString, "%s", players[pBot->m_ulPlayerEnemy].userinfo.GetName() );
 				pszOutString += strlen( players[pBot->m_ulPlayerEnemy].userinfo.GetName() );
-				pszOutString += strlen( "\\c-" );
 
 				pszInString += strlen( "player_enemy" );
 			}
 			else if (( strnicmp( pszInString + 1, "player_killedby", strlen( "player_killedby" )) == 0 ) && ( pBot->m_ulPlayerKilledBy != MAXPLAYERS ))
 			{
-				sprintf( pszOutString, "%s\\c-", players[pBot->m_ulPlayerKilledBy].userinfo.GetName() );
+				sprintf( pszOutString, "%s", players[pBot->m_ulPlayerKilledBy].userinfo.GetName() );
 				pszOutString += strlen( players[pBot->m_ulPlayerKilledBy].userinfo.GetName() );
-				pszOutString += strlen( "\\c-" );
 
 				pszInString += strlen( "player_killedby" );
 			}
 			else if (( strnicmp( pszInString + 1, "player_killed", strlen( "player_killed" )) == 0 ) && ( pBot->m_ulPlayerKilled != MAXPLAYERS ))
 			{
-				sprintf( pszOutString, "%s\\c-", players[pBot->m_ulPlayerKilled].userinfo.GetName() );
+				sprintf( pszOutString, "%s", players[pBot->m_ulPlayerKilled].userinfo.GetName() );
 				pszOutString += strlen( players[pBot->m_ulPlayerKilled].userinfo.GetName() );
-				pszOutString += strlen( "\\c-" );
 
 				pszInString += strlen( "player_killed" );
 			}
@@ -681,9 +678,8 @@ void BOTCMD_DoChatStringSubstitutions( CSkullBot *pBot, const char *pszInString,
 						ulBestPlayer = ulIdx;
 				}
 
-				sprintf( pszOutString, "%s\\c-", players[ulBestPlayer].userinfo.GetName() );
+				sprintf( pszOutString, "%s", players[ulBestPlayer].userinfo.GetName() );
 				pszOutString += strlen( players[ulBestPlayer].userinfo.GetName() );
-				pszOutString += strlen( "\\c-" );
 
 				pszInString += strlen( "player_inlead" );
 			}
@@ -701,9 +697,8 @@ void BOTCMD_DoChatStringSubstitutions( CSkullBot *pBot, const char *pszInString,
 						ulBestPlayer = ulIdx;
 				}
 
-				sprintf( pszOutString, "%s\\c-", players[ulBestPlayer].userinfo.GetName() );
+				sprintf( pszOutString, "%s", players[ulBestPlayer].userinfo.GetName() );
 				pszOutString += strlen( players[ulBestPlayer].userinfo.GetName() );
-				pszOutString += strlen( "\\c-" );
 
 				pszInString += strlen( "player_lastplace" );
 			}
@@ -731,9 +726,8 @@ void BOTCMD_DoChatStringSubstitutions( CSkullBot *pBot, const char *pszInString,
 					while (( ulPlayer == static_cast<unsigned> ( pBot->GetPlayer( ) - players )) || ( playeringame[ulPlayer] == false ));
 				}
 				
-				sprintf( pszOutString, "%s\\c-", players[ulPlayer].userinfo.GetName() );
+				sprintf( pszOutString, "%s", players[ulPlayer].userinfo.GetName() );
 				pszOutString += strlen( players[ulPlayer].userinfo.GetName() );
-				pszOutString += strlen( "\\c-" );
 
 				pszInString += strlen( "player_random_notself" );
 			}
@@ -747,33 +741,29 @@ void BOTCMD_DoChatStringSubstitutions( CSkullBot *pBot, const char *pszInString,
 				}
 				while ( playeringame[ulPlayer] == false );
 				
-				sprintf( pszOutString, "%s\\c-", players[ulPlayer].userinfo.GetName() );
+				sprintf( pszOutString, "%s", players[ulPlayer].userinfo.GetName() );
 				pszOutString += strlen( players[ulPlayer].userinfo.GetName() );
-				pszOutString += strlen( "\\c-" );
 
 				pszInString += strlen( "player_random" );
 			}
 			else if (( strnicmp( pszInString + 1, "player_lastchat", strlen( "player_lastchat" )) == 0 ) && ( g_szLastChatPlayer[0] != 0 ))
 			{				
-				sprintf( pszOutString, "%s\\c-", g_szLastChatPlayer );
+				sprintf( pszOutString, "%s", g_szLastChatPlayer );
 				pszOutString += strlen( g_szLastChatPlayer );
-				pszOutString += strlen( "\\c-" );
 
 				pszInString += strlen( "player_lastchat" );
 			}
 			else if ( strnicmp( pszInString + 1, "level_name", strlen( "level_name" )) == 0 )
 			{				
-				sprintf( pszOutString, "%s\\c-", level.LevelName.GetChars() );
+				sprintf( pszOutString, "%s", level.LevelName.GetChars() );
 				pszOutString += strlen( level.LevelName.GetChars() );
-				pszOutString += strlen( "\\c-" );
 
 				pszInString += strlen( "level_name" );
 			}
 			else if ( strnicmp( pszInString + 1, "map_name", strlen( "map_name" )) == 0 )
 			{				
-				sprintf( pszOutString, "%s\\c-", level.mapname );
+				sprintf( pszOutString, "%s", level.mapname );
 				pszOutString += strlen( level.mapname );
-				pszOutString += strlen( "\\c-" );
 
 				pszInString += strlen( "map_name" );
 			}
@@ -2042,6 +2032,9 @@ static void botcmd_Say( CSkullBot *pBot )
 
 	if ( bot_allowchat )
 	{
+		// Format the message so color codes can appear.
+		V_ColorizeString( szInString );
+
 		// Perform any chat string substitutions that need to be done.
 		BOTCMD_DoChatStringSubstitutions( pBot, szInString, szOutString );
 
@@ -2081,13 +2074,7 @@ static void botcmd_SayFromFile( CSkullBot *pBot )
 	pFile = new CChatFile;
 	if ( pFile->LoadChatFile( szFilename ) == false )
 	{
-		// Temporarily disable the use of color codes.
-		CONSOLE_SetAllowColorCodes( false );
-
 		Printf( "botcmd_SayFromFile: Couldn't open file %s!\n", szFilename );
-
-		// Re-enable the use of color codes.
-		CONSOLE_SetAllowColorCodes( true );
 
 		// Free the file before leaving.
 		delete( pFile );
@@ -2097,13 +2084,7 @@ static void botcmd_SayFromFile( CSkullBot *pBot )
 	sprintf( szInString, "%s", pFile->ChooseRandomEntry( szSection ));
 	if ( stricmp( szInString, "NULL" ) == 0 )
 	{
-		// Temporarily disable the use of color codes.
-		CONSOLE_SetAllowColorCodes( false );
-
 		Printf( "botcmd_SayFromFile: Couldn't find section %s in file %s!\n", szSection, szFilename );
-
-		// Re-enable the use of color codes.
-		CONSOLE_SetAllowColorCodes( true );
 
 		// Free the file before leaving.
 		delete( pFile );
@@ -2112,6 +2093,9 @@ static void botcmd_SayFromFile( CSkullBot *pBot )
 
 	if ( bot_allowchat )
 	{
+		// Format the message so color codes can appear.
+		V_ColorizeString( szInString );
+
 		// Perform any chat string substitutions that need to be done.
 		BOTCMD_DoChatStringSubstitutions( pBot, szInString, szOutString );
 
@@ -2148,13 +2132,7 @@ static void botcmd_SayFromChatFile( CSkullBot *pBot )
 	pFile = new CChatFile;
 	if ( pFile->LoadChatFile( szFilename ) == false )
 	{
-		// Temporarily disable the use of color codes.
-		CONSOLE_SetAllowColorCodes( false );
-
 		Printf( "botcmd_SayFromFile: Couldn't open file %s!\n", szFilename );
-
-		// Re-enable the use of color codes.
-		CONSOLE_SetAllowColorCodes( true );
 
 		// Free the file before leaving.
 		delete( pFile );
@@ -2164,13 +2142,7 @@ static void botcmd_SayFromChatFile( CSkullBot *pBot )
 	sprintf( szInString, "%s", pFile->ChooseRandomEntry( szSection ));
 	if ( stricmp( szInString, "NULL" ) == 0 )
 	{
-		// Temporarily disable the use of color codes.
-		CONSOLE_SetAllowColorCodes( false );
-
 		Printf( "botcmd_SayFromChatFile: Couldn't find section %s in file %s!\n", szSection, szFilename );
-
-		// Re-enable the use of color codes.
-		CONSOLE_SetAllowColorCodes( true );
 
 		// Free the file before leaving.
 		delete( pFile );
@@ -2179,6 +2151,9 @@ static void botcmd_SayFromChatFile( CSkullBot *pBot )
 
 	if ( bot_allowchat )
 	{
+		// Format the message so color codes can appear.
+		V_ColorizeString( szInString );
+
 		// Perform any chat string substitutions that need to be done.
 		BOTCMD_DoChatStringSubstitutions( pBot, szInString, szOutString );
 
@@ -2374,7 +2349,7 @@ static void botcmd_TryToJoinGame( CSkullBot *pBot )
 	if ( GAMEMODE_GetCurrentFlags() & GMF_PLAYERSONTEAMS )
 		PLAYER_SetTeam( pBot->GetPlayer( ), TEAM_ChooseBestTeamForPlayer( ), true );
 
-	Printf( "%s \\c-joined the game.\n", pBot->GetPlayer( )->userinfo.GetName() );
+	Printf( "%s joined the game.\n", pBot->GetPlayer( )->userinfo.GetName() );
 }
 
 //*****************************************************************************
@@ -2644,13 +2619,7 @@ static void botcmd_SayFromLump( CSkullBot *pBot )
 	pFile = new CChatFile;
 	if ( pFile->LoadChatLump( szLumpname ) == false )
 	{
-		// Temporarily disable the use of color codes.
-		CONSOLE_SetAllowColorCodes( false );
-
 		Printf( "botcmd_SayFromLump: Couldn't open lump %s!\n", szLumpname );
-
-		// Re-enable the use of color codes.
-		CONSOLE_SetAllowColorCodes( true );
 
 		// Free the file before leaving.
 		delete( pFile );
@@ -2660,13 +2629,7 @@ static void botcmd_SayFromLump( CSkullBot *pBot )
 	sprintf( szInString, "%s", pFile->ChooseRandomEntry( szSection ));
 	if ( stricmp( szInString, "NULL" ) == 0 )
 	{
-		// Temporarily disable the use of color codes.
-		CONSOLE_SetAllowColorCodes( false );
-
 		Printf( "botcmd_SayFromLump: Couldn't find section %s in lump %s!\n", szSection, szLumpname );
-
-		// Re-enable the use of color codes.
-		CONSOLE_SetAllowColorCodes( true );
 
 		// Free the file before leaving.
 		delete( pFile );
@@ -2675,6 +2638,9 @@ static void botcmd_SayFromLump( CSkullBot *pBot )
 
 	if ( bot_allowchat )
 	{
+		// Format the message so color codes can appear.
+		V_ColorizeString( szInString );
+
 		// Perform any chat string substitutions that need to be done.
 		BOTCMD_DoChatStringSubstitutions( pBot, szInString, szOutString );
 
@@ -2711,13 +2677,7 @@ static void botcmd_SayFromChatLump( CSkullBot *pBot )
 	pFile = new CChatFile;
 	if ( pFile->LoadChatLump( szLumpname ) == false )
 	{
-		// Temporarily disable the use of color codes.
-		CONSOLE_SetAllowColorCodes( false );
-
 		Printf( "botcmd_SayFromChatLump: Couldn't open lump %s!\n", szLumpname );
-
-		// Re-enable the use of color codes.
-		CONSOLE_SetAllowColorCodes( true );
 
 		// Free the file before leaving.
 		delete pFile;
@@ -2727,13 +2687,7 @@ static void botcmd_SayFromChatLump( CSkullBot *pBot )
 	sprintf( szInString, "%s", pFile->ChooseRandomEntry( szSection ));
 	if ( stricmp( szInString, "NULL" ) == 0 )
 	{
-		// Temporarily disable the use of color codes.
-		CONSOLE_SetAllowColorCodes( false );
-
 		Printf( "botcmd_SayFromChatLump: Couldn't find section %s in lump %s!\n", szSection, szLumpname );
-
-		// Re-enable the use of color codes.
-		CONSOLE_SetAllowColorCodes( true );
 
 		// Free the file before leaving.
 		delete pFile;
@@ -2742,6 +2696,9 @@ static void botcmd_SayFromChatLump( CSkullBot *pBot )
 
 	if ( bot_allowchat )
 	{
+		// Format the message so color codes can appear.
+		V_ColorizeString( szInString );
+
 		// Perform any chat string substitutions that need to be done.
 		BOTCMD_DoChatStringSubstitutions( pBot, szInString, szOutString );
 

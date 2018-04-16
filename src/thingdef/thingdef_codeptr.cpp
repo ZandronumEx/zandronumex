@@ -746,9 +746,13 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_JumpIfTargetOutsideMeleeRange)
 	ACTION_PARAM_START(1);
 	ACTION_PARAM_STATE(jump, 0);
 
+	// [EP] This is handled by the server.
+	if ( NETWORK_InClientModeAndActorNotClientHandled( self ))
+		return;
+
 	if (!self->CheckMeleeRange())
 	{
-		ACTION_JUMP(jump, 0);	// [BB] Let's hope that the clients know enough.
+		ACTION_JUMP(jump, CLIENTUPDATE_FRAME|CLIENTUPDATE_POSITION );	// [EP] Since monsters don't have targets on the client end, we need to send an update.
 	}
 	ACTION_SET_RESULT(false);	// Jumps should never set the result for inventory state chains!
 }
@@ -763,9 +767,13 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_JumpIfTargetInsideMeleeRange)
 	ACTION_PARAM_START(1);
 	ACTION_PARAM_STATE(jump, 0);
 
+	// [EP] This is handled by the server.
+	if ( NETWORK_InClientModeAndActorNotClientHandled( self ))
+		return;
+
 	if (self->CheckMeleeRange())
 	{
-		ACTION_JUMP(jump, 0);	// [BB] Let's hope that the clients know enough.
+		ACTION_JUMP(jump, CLIENTUPDATE_FRAME|CLIENTUPDATE_POSITION );	// [EP] Since monsters don't have targets on the client end, we need to send an update.
 	}
 	ACTION_SET_RESULT(false);	// Jumps should never set the result for inventory state chains!
 }
@@ -2817,11 +2825,22 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_SetTranslucent)
 	ACTION_PARAM_FIXED(alpha, 0);
 	ACTION_PARAM_INT(mode, 1);
 
+	// [Leo] This is handled server-side.
+	if ( NETWORK_InClientModeAndActorNotClientHandled( self ) )
+		return;
+
 	mode = mode == 0 ? STYLE_Translucent : mode == 2 ? STYLE_Fuzzy : STYLE_Add;
 
 	self->RenderStyle.Flags &= ~STYLEF_Alpha1;
 	self->alpha = clamp<fixed_t>(alpha, 0, FRACUNIT);
 	self->RenderStyle = ERenderStyle(mode);
+
+	// [Leo] Inform the clients about the alpha change and RenderStyle.
+	if (( NETWORK_GetState() == NETSTATE_SERVER ) && ( NETWORK_IsActorClientHandled( self ) == false ))
+	{
+		SERVERCOMMANDS_SetThingProperty(self, APROP_RenderStyle);
+		SERVERCOMMANDS_SetThingProperty(self, APROP_Alpha);
+	}
 }
 
 //===========================================================================
@@ -3898,6 +3917,10 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_CheckLOF)
 		ACTION_PARAM_FIXED(offsetwidth, 7);
 		ACTION_PARAM_INT(ptr_target, 8);
 
+		// [EP/BB] This is handled by the server.
+		if ( NETWORK_InClientModeAndActorNotClientHandled( self ) )
+		    return;
+
 		ACTION_SET_RESULT(false);	// Jumps should never set the result for inventory state chains!
 		
 		target = COPY_AAPTR(self, ptr_target == AAPTR_DEFAULT ? AAPTR_TARGET|AAPTR_PLAYER_GETTARGET|AAPTR_NULL : ptr_target); // no player-support by default
@@ -4029,7 +4052,7 @@ DEFINE_ACTION_FUNCTION_PARAMS(AActor, A_CheckLOF)
 		{
 			return;
 		}
-		ACTION_JUMP(jump, 0);	// [BB] Let's hope that the clients know enough.
+		ACTION_JUMP(jump, CLIENTUPDATE_FRAME );	// [EP] Since the actor's target is unknown on the client end, we need to send an update.
 	}
 }
 

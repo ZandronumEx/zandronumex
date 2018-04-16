@@ -754,7 +754,7 @@ void CHAT_PrintChatString( ULONG ulPlayer, ULONG ulMode, const char *pszString )
 		{
 			ulChatLevel = PRINT_HIGH;
 			pszString += 3;
-			OutString.AppendFormat( "* %s\\cc", players[ulPlayer].userinfo.GetName() );
+			OutString.AppendFormat( "* %s" TEXTCOLOR_GREY, players[ulPlayer].userinfo.GetName() );
 		}
 		else
 		{
@@ -768,7 +768,7 @@ void CHAT_PrintChatString( ULONG ulPlayer, ULONG ulMode, const char *pszString )
 			OutString += "<SPEC> ";
 		else
 		{
-			OutString = "\\c";
+			OutString = TEXTCOLOR_ESCAPE;
 			OutString += V_GetColorChar( TEAM_GetTextColor( players[consoleplayer].ulTeam ));
 			OutString += "<TEAM> ";
 		}
@@ -778,21 +778,15 @@ void CHAT_PrintChatString( ULONG ulPlayer, ULONG ulMode, const char *pszString )
 		{
 			ulChatLevel = PRINT_HIGH;
 			pszString += 3;
-			OutString.AppendFormat( "\\cc* %s\\cc", players[ulPlayer].userinfo.GetName() );
+			OutString.AppendFormat( TEXTCOLOR_GREY "* %s" TEXTCOLOR_GREY, players[ulPlayer].userinfo.GetName() );
 		}
 		else
 		{
-			OutString.AppendFormat( "\\cd%s" TEXTCOLOR_TEAMCHAT ": ", players[ulPlayer].userinfo.GetName() );
+			OutString.AppendFormat( TEXTCOLOR_GREEN "%s" TEXTCOLOR_TEAMCHAT ": ", players[ulPlayer].userinfo.GetName() );
 		}
 	}
 
 	ChatString = pszString;
-
-	// [RC] Remove linebreaks and other escape codes from chat.
-	ChatString.Substitute("\\", "\\\\");
-
-	// [RC] ...but allow chat colors.
-	ChatString.Substitute("\\\\c", "\\c");
 
 	// [BB] Remove invalid color codes, those can confuse the printing and create new lines.
 	V_RemoveInvalidColorCodes( ChatString );
@@ -883,6 +877,9 @@ void chat_SendMessage( ULONG ulMode, const char *pszString )
 {
 	FString ChatMessage = pszString;
 
+	// Format our message so color codes can appear.
+	V_ColorizeString( ChatMessage );
+
 	// [CW] Substitute the message if necessary.
 	chat_DoSubstitution( ChatMessage );
 
@@ -920,7 +917,6 @@ void chat_GetIgnoredPlayers( FString &Destination )
 		if ( players[i].bIgnoreChat )
 		{
 			Destination += players[i].userinfo.GetName();
-			Destination += "\\c-";
 			
 			// Add the time remaining.
 			if ( players[i].lIgnoreChatTicks > 0 )
@@ -1016,7 +1012,12 @@ void chat_DoSubstitution( FString &Input )
 			}
 			else if ( !strncmp( pszString, "$location", 9 ))
 			{
-				Output += SECTINFO_GetPlayerLocation( consoleplayer );
+				// SECTINFO_GetPlayerLocation returns an unformatted string yet we should reach
+				// chat_DoSubstitution after our chat line has already been formatted.
+				FString szColorizedString = SECTINFO_GetPlayerLocation( consoleplayer );
+				V_ColorizeString( szColorizedString );
+
+				Output += szColorizedString;
 				pszString += 8;
 			}
 			else
@@ -1148,7 +1149,7 @@ void chat_IgnorePlayer( FCommandLine &argv, const ULONG ulPlayer )
 		chat_GetIgnoredPlayers( PlayersIgnored );
 
 		if ( PlayersIgnored.Len( ))
-			Printf( "\\cgIgnored players: \\c-%s\nUse \"unignore\" or \"unignore_idx\" to undo.\n", PlayersIgnored.GetChars() );
+			Printf( TEXTCOLOR_RED "Ignored players: " TEXTCOLOR_NORMAL "%s\nUse \"unignore\" or \"unignore_idx\" to undo.\n", PlayersIgnored.GetChars() );
 		else
 			Printf( "Ignores a certain player's chat messages.\nUsage: ignore <name> [duration, in minutes]\n" );
 
@@ -1163,16 +1164,16 @@ void chat_IgnorePlayer( FCommandLine &argv, const ULONG ulPlayer )
 		lTicks = lArgv2 * TICRATE * MINUTE;
 
 	if ( ulPlayer == MAXPLAYERS )
-		Printf( "There isn't a player named %s\\c-.\n", argv[1] );
+		Printf( "There isn't a player named %s" TEXTCOLOR_NORMAL ".\n", argv[1] );
 	else if ( ( ulPlayer == (ULONG)consoleplayer ) && ( NETWORK_GetState( ) != NETSTATE_SERVER ) )
 		Printf( "You can't ignore yourself.\n" );
 	else if ( players[ulPlayer].bIgnoreChat && ( players[ulPlayer].lIgnoreChatTicks == lTicks ))
-		Printf( "You're already ignoring %s\\c-.\n", players[ulPlayer].userinfo.GetName() );
+		Printf( "You're already ignoring %s.\n", players[ulPlayer].userinfo.GetName() );
 	else
 	{
 		players[ulPlayer].bIgnoreChat = true;
 		players[ulPlayer].lIgnoreChatTicks = lTicks;
-		Printf( "%s\\c- will now be ignored", players[ulPlayer].userinfo.GetName() );
+		Printf( "%s will now be ignored", players[ulPlayer].userinfo.GetName() );
 		if ( lTicks > 0 )
 			Printf( ", for %d minutes", static_cast<int>(lArgv2));
 		Printf( ".\n" );
@@ -1219,7 +1220,7 @@ void chat_UnignorePlayer( FCommandLine &argv, const ULONG ulPlayer )
 		chat_GetIgnoredPlayers( PlayersIgnored );
 
 		if ( PlayersIgnored.Len( ))
-			Printf( "\\cgIgnored players: \\c-%s\n", PlayersIgnored.GetChars() );
+			Printf( TEXTCOLOR_RED "Ignored players: " TEXTCOLOR_NORMAL "%s\n", PlayersIgnored.GetChars() );
 		else
 			Printf( "Un-ignores a certain player's chat messages.\nUsage: unignore <name>\n" );
 
@@ -1227,16 +1228,16 @@ void chat_UnignorePlayer( FCommandLine &argv, const ULONG ulPlayer )
 	}
 	
 	if ( ulPlayer == MAXPLAYERS )
-		Printf( "There isn't a player named %s\\c-.\n", argv[1] );
+		Printf( "There isn't a player named %s" TEXTCOLOR_NORMAL ".\n", argv[1] );
 	else if ( ( ulPlayer == (ULONG)consoleplayer ) && ( NETWORK_GetState( ) != NETSTATE_SERVER ) )
 		Printf( "You can't unignore yourself.\n" );
 	else if ( !players[ulPlayer].bIgnoreChat )
-		Printf( "You're not ignoring %s\\c-.\n", players[ulPlayer].userinfo.GetName() );
+		Printf( "You're not ignoring %s.\n", players[ulPlayer].userinfo.GetName() );
 	else 
 	{
 		players[ulPlayer].bIgnoreChat = false;
 		players[ulPlayer].lIgnoreChatTicks = -1;
-		Printf( "%s\\c- will no longer be ignored.\n", players[ulPlayer].userinfo.GetName() );
+		Printf( "%s will no longer be ignored.\n", players[ulPlayer].userinfo.GetName() );
 
 		// Notify the server so that others using this IP are also ignored.
 		if ( NETWORK_GetState( ) == NETSTATE_CLIENT )

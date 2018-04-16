@@ -87,7 +87,7 @@ CVAR( Int, sv_banfilereparsetime, 0, CVAR_ARCHIVE|CVAR_NOSETBYACS )
 
 //*****************************************************************************
 //
-CUSTOM_CVAR( Bool, sv_enforcemasterbanlist, true, CVAR_ARCHIVE|CVAR_NOSETBYACS )
+CUSTOM_CVAR( Bool, sv_enforcemasterbanlist, true, CVAR_ARCHIVE|CVAR_NOSETBYACS|CVAR_SERVERINFO )
 {
 	if ( NETWORK_GetState( ) != NETSTATE_SERVER )
 		return;
@@ -99,7 +99,7 @@ CUSTOM_CVAR( Bool, sv_enforcemasterbanlist, true, CVAR_ARCHIVE|CVAR_NOSETBYACS )
 
 //*****************************************************************************
 //
-CUSTOM_CVAR( String, sv_banfile, "banlist.txt", CVAR_ARCHIVE|CVAR_NOSETBYACS )
+CUSTOM_CVAR( String, sv_banfile, "banlist.txt", CVAR_ARCHIVE|CVAR_NOSETBYACS|CVAR_SENSITIVESERVERSETTING )
 {
 	if ( NETWORK_GetState( ) != NETSTATE_SERVER )
 		return;
@@ -113,7 +113,7 @@ CUSTOM_CVAR( String, sv_banfile, "banlist.txt", CVAR_ARCHIVE|CVAR_NOSETBYACS )
 
 //*****************************************************************************
 //
-CUSTOM_CVAR( String, sv_banexemptionfile, "whitelist.txt", CVAR_ARCHIVE|CVAR_NOSETBYACS )
+CUSTOM_CVAR( String, sv_banexemptionfile, "whitelist.txt", CVAR_ARCHIVE|CVAR_NOSETBYACS|CVAR_SENSITIVESERVERSETTING )
 {
 	if ( NETWORK_GetState( ) != NETSTATE_SERVER )
 		return;
@@ -407,7 +407,7 @@ void SERVERBAN_BanPlayer( ULONG ulPlayer, const char *pszBanLength, const char *
 	time_t tExpiration = SERVERBAN_ParseBanLength( pszBanLength );
 	if ( tExpiration == -1 )
 	{
-		Printf("Error: couldn't read that length. Try something like \\cg6day\\c- or \\cg\"5 hours\"\\c-.\n");
+		Printf("Error: couldn't read that length. Try something like " TEXTCOLOR_RED "6day" TEXTCOLOR_NORMAL " or " TEXTCOLOR_RED "\"5 hours\"" TEXTCOLOR_NORMAL ".\n");
 		return;
 	}
 
@@ -514,13 +514,13 @@ CCMD( getIP )
 	// Look up the player.
 	ULONG ulIdx = SERVER_GetPlayerIndexFromName( argv[1], true, false );
 	if ( SERVER_IsValidClient( ulIdx ))
-		Printf( "%s\\c-'s IP is: %s\n", players[ulIdx].userinfo.GetName(), SERVER_GetClient( ulIdx )->Address.ToString() );
+		Printf( "%s's IP is: %s\n", players[ulIdx].userinfo.GetName(), SERVER_GetClient( ulIdx )->Address.ToString() );
 	else
 	{
 		if ( SERVER_GetPlayerIndexFromName( argv[1], true, true ) != MAXPLAYERS )
-			Printf( "%s\\c- is a bot.\n", argv[1] );
+			Printf( "%s" TEXTCOLOR_NORMAL " is a bot.\n", argv[1] );
 		else
-			Printf( "Unknown player: %s\\c-\n",argv[1] );
+			Printf( "Unknown player: %s" TEXTCOLOR_NORMAL "\n",argv[1] );
 	}
 }
 
@@ -547,9 +547,9 @@ CCMD( getIP_idx )
 		return;
 
 	if ( players[playerIndex].bIsBot )
-		Printf( "%s\\c- is a bot.\n", players[playerIndex].userinfo.GetName() );
+		Printf( "%s is a bot.\n", players[playerIndex].userinfo.GetName() );
 	else
-		Printf( "%s\\c-'s IP is: %s\n", players[playerIndex].userinfo.GetName(), SERVER_GetClient( playerIndex )->Address.ToString() );
+		Printf( "%s's IP is: %s\n", players[playerIndex].userinfo.GetName(), SERVER_GetClient( playerIndex )->Address.ToString() );
 }
 
 //*****************************************************************************
@@ -605,9 +605,9 @@ CCMD( ban )
 	else
 	{
 		if ( SERVER_GetPlayerIndexFromName( argv[1], true, true ) != MAXPLAYERS )
-			Printf( "%s\\c- is a bot.\n", argv[1] );
+			Printf( "%s" TEXTCOLOR_NORMAL " is a bot.\n", argv[1] );
 		else
-			Printf( "Unknown player: %s\\c-\n",argv[1] );
+			Printf( "Unknown player: %s" TEXTCOLOR_NORMAL "\n",argv[1] );
 	}
 }
 
@@ -624,7 +624,7 @@ CCMD( addban )
 	time_t tExpiration = SERVERBAN_ParseBanLength( argv[2] );
 	if ( tExpiration == -1 )
 	{
-		Printf("Error: couldn't read that length. Try something like \\cg6day\\c- or \\cg\"5 hours\"\\c-.\n");
+		Printf("Error: couldn't read that length. Try something like " TEXTCOLOR_RED "6day" TEXTCOLOR_NORMAL " or " TEXTCOLOR_RED "\"5 hours\"" TEXTCOLOR_NORMAL ".\n");
 		return;
 	}
 

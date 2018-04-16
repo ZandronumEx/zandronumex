@@ -865,36 +865,6 @@ void D_UserInfoChanged (FBaseCVar *cvar)
 		}
 		// [BB] Get rid of this cast.
 		V_ColorizeString( const_cast<char *> ( val.String ) );
-
-		// [BB] We don't want clients to change their name too often.
-		if ( NETWORK_GetState( ) == NETSTATE_CLIENT )
-		{
-			// [BB] The name was not actually changed, so no need to do anything.
-			if ( strcmp ( g_oldPlayerName.GetChars(), val.String ) == 0 )
-			{
-				// [BB] The client insists on changing to a name already in use.
-				if ( stricmp ( val.String, players[consoleplayer].userinfo.GetName() ) != 0 )
-				{
-					Printf ( "The server already reported that this name is in use!\n" );
-					g_oldPlayerName = players[consoleplayer].userinfo.GetName();
-					return;
-				}
-			}
-			// [BB] The client recently changed its name, don't allow to change it again yet.
-			// [TP] Made conditional with sv_limitcommands
-			else if (( sv_limitcommands ) && ( g_ulLastNameChangeTime > 0 ) && ( (ULONG)gametic < ( g_ulLastNameChangeTime + ( TICRATE * 30 ))))
-			{
-				Printf( "You must wait at least 30 seconds before changing your name again.\n" );
-				name = g_oldPlayerName;
-				return;
-			}
-			// [BB] The client made a valid name change, keep track of this.
-			else
-			{
-				g_ulLastNameChangeTime = gametic;
-				g_oldPlayerName = val.String;
-			}
-		}
 	}
 	else if ( cvar == &handicap )
 	{
@@ -997,6 +967,36 @@ void D_UserInfoChanged (FBaseCVar *cvar)
 		D_SendPendingUserinfoChanges();
 }
 
+static bool IsValidNameChange()
+{
+	// [BB] We don't want clients to change their name too often.
+	if ( NETWORK_GetState() == NETSTATE_CLIENT )
+	{
+		// [BB] The name was not actually changed, so no need to do anything.
+		if ( g_oldPlayerName.Compare( name ) == 0 )
+		{
+			// [BB] The client insists on changing to a name already in use.
+			if ( stricmp ( name, players[consoleplayer].userinfo.GetName() ) != 0 )
+			{
+				Printf ( "The server already reported that this name is in use!\n" );
+				g_oldPlayerName = players[consoleplayer].userinfo.GetName();
+				return false;
+			}
+		}
+		// [BB] The client recently changed its name, don't allow to change it again yet.
+		// [TP] Made conditional with sv_limitcommands
+		else if ( sv_limitcommands
+			&& ( g_ulLastNameChangeTime > 0 )
+			&& ( (ULONG)gametic < ( g_ulLastNameChangeTime + ( TICRATE * 30 ))))
+		{
+			Printf( "You must wait at least 30 seconds before changing your name again.\n" );
+			return false;
+		}
+	}
+
+	return true;
+}
+
 void D_SendPendingUserinfoChanges()
 {
 	// Send updated userinfo to the server.
@@ -1004,6 +1004,22 @@ void D_SendPendingUserinfoChanges()
 		&& ( CLIENT_GetConnectionState() >= CTS_REQUESTINGSNAPSHOT )
 		&& ( PendingUserinfoChanges.size() > 0 ))
 	{
+		// [TP] If there's a name change pending and it is not valid, revert the
+		// name change and remove it from the list of things to send.
+		UserInfoChanges::iterator namePosition = PendingUserinfoChanges.find( NAME_Name );
+
+		if (( namePosition != PendingUserinfoChanges.end() ) && ( IsValidNameChange() == false ))
+		{
+			PendingUserinfoChanges.erase( namePosition );
+			name = g_oldPlayerName;
+		}
+		else
+		{
+			// [BB] The client made a valid name change, keep track of this.
+			g_ulLastNameChangeTime = gametic;
+			g_oldPlayerName = name;
+		}
+
 		CLIENTCOMMANDS_UserInfo( PendingUserinfoChanges );
 
 		if ( CLIENTDEMO_IsRecording( ))
@@ -1308,7 +1324,11 @@ void D_ReadUserInfoStrings (int pnum, BYTE **stream, bool update)
 				// [BC] If the skin was hidden, reveal it!
 				if ( skins[info->GetSkin()].bRevealed == false )
 				{
-					Printf( "Hidden skin \"%s\\c-\" has now been revealed!\n", skins[info->GetSkin()].name );
+					char szColorizedName[25];
+					strcpy( szColorizedName, skins[info->GetSkin()].name );
+					V_ColorizeString( szColorizedName );
+
+					Printf( "Hidden skin \"%s" TEXTCOLOR_NORMAL "\" has now been revealed!\n", szColorizedName );
 					skins[info->GetSkin()].bRevealed = true;
 				}
 
@@ -1396,8 +1416,8 @@ void D_ReadUserInfoStrings (int pnum, BYTE **stream, bool update)
 					value.UnlockBuffer();
 					if (keyname == NAME_Name && update && oldname.Compare (value))
 					{
-						// [BB] Added "\\c-"
-						Printf("%s \\c-is now known as %s\n", oldname.GetChars(), value.GetChars());
+						// [BB] Added TEXTCOLOR_NORMAL
+						Printf("%s " TEXTCOLOR_NORMAL "is now known as %s\n", oldname.GetChars(), value.GetChars());
 					}
 				}
 				break;
@@ -1529,23 +1549,23 @@ CCMD (playerinfo)
 			{
 				// [BB] Only call Printf once to prevent problems with sv_logfiletimestamp.
 				FString infoString;
-				infoString.AppendFormat("\\c%c%d. %s", PLAYER_IsTrueSpectator( &players[i] ) ? 'k' : 'j', i, players[i].userinfo.GetName());
+				infoString.AppendFormat("\034%c%d. %s", PLAYER_IsTrueSpectator( &players[i] ) ? 'k' : 'j', i, players[i].userinfo.GetName());
 
 				// [RC] Are we the server? Draw their IPs as well.
 				if ( NETWORK_GetState( ) == NETSTATE_SERVER )
 				{
-					infoString.AppendFormat("\\c%c - IP %s", PLAYER_IsTrueSpectator( &players[i] ) ? 'k' : 'j', SERVER_GetClient( i )->Address.ToString() );
+					infoString.AppendFormat("\034%c - IP %s", PLAYER_IsTrueSpectator( &players[i] ) ? 'k' : 'j', SERVER_GetClient( i )->Address.ToString() );
 					// [BB] If we detected suspicious behavior of this client, print this now.
 					if ( SERVER_GetClient( i )->bSuspicious )
 						infoString.AppendFormat ( " * %lu", SERVER_GetClient( i )->ulNumConsistencyWarnings );
 
 					// [K6/BB] Show the player's country, if the GeoIP db is available.
 					if ( NETWORK_IsGeoIPAvailable() )
-						infoString.AppendFormat ( "\\ce - FROM %s", NETWORK_GetCountryCodeFromAddress ( SERVER_GetClient( i )->Address ).GetChars() );
+						infoString.AppendFormat ( TEXTCOLOR_BROWN " - FROM %s", NETWORK_GetCountryCodeFromAddress ( SERVER_GetClient( i )->Address ).GetChars() );
 				}
 
 				if ( PLAYER_IsTrueSpectator( &players[i] ))
-					infoString.AppendFormat("\\ck (SPEC)");
+					infoString.AppendFormat( TEXTCOLOR_YELLOW " (SPEC)" );
 
 				Printf("%s\n", infoString.GetChars());
 			}
@@ -1629,21 +1649,3 @@ userinfo_t::~userinfo_t()
 	}
 	this->Clear();
 }
-
-#ifdef _DEBUG
-// [BC] Debugging function.
-CCMD( listinventory )
-{
-	AInventory	*pInventory;
-
-	if ( players[consoleplayer].mo == NULL )
-		return;
-
-	pInventory = players[consoleplayer].mo->Inventory;
-	while ( pInventory )
-	{
-		Printf( "%s\n", pInventory->GetClass( )->TypeName.GetChars( ));
-		pInventory = pInventory->Inventory;
-	}
-}
-#endif

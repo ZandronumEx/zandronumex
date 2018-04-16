@@ -118,6 +118,7 @@
 #include "decallib.h"
 #include "network/servercommands.h"
 #include "am_map.h"
+#include "menu/menu.h"
 
 //*****************************************************************************
 //	MISC CRAP THAT SHOULDN'T BE HERE BUT HAS TO BE BECAUSE OF SLOPPY CODING
@@ -145,6 +146,7 @@ EXTERN_CVAR( Float, turbo )
 EXTERN_CVAR( Float, sv_gravity )
 EXTERN_CVAR( Float, sv_aircontrol )
 EXTERN_CVAR( Bool, cl_hideaccount )
+EXTERN_CVAR( Int, cl_ticsperupdate )
 EXTERN_CVAR( String, name )
 
 //*****************************************************************************
@@ -270,7 +272,6 @@ static	void	client_SetPolyobjRotation( BYTESTREAM_s *pByteStream );
 
 // Miscellaneous commands.
 static	void	client_EarthQuake( BYTESTREAM_s *pByteStream );
-static	void	client_DoScroller( BYTESTREAM_s *pByteStream );
 static	void	client_SetScroller( BYTESTREAM_s *pByteStream );
 static	void	client_SetWallScroller( BYTESTREAM_s *pByteStream );
 static	void	client_DoFlashFader( BYTESTREAM_s *pByteStream );
@@ -363,11 +364,17 @@ static	LONG				g_lMissingPacketTicks;
 // Debugging variables.
 static	LONG				g_lLastCmd;
 
-// [CK] The most up-to-date server gametic
-static	int				g_lLatestServerGametic = 0;
+// [CK] The most up-to-date server gametic.
+static	int					g_lLatestServerGametic = 0;
+
+// Offset from the server gametic caused by cl_ticsperupdate.
+static	int					g_ServerGameticOffset;
 
 // [TP] Client's understanding of the account names of players.
 static FString				g_PlayerAccountNames[MAXPLAYERS];
+
+// [TP] Do we have RCON access to the server?
+static	bool				g_HasRCONAccess = false;
 
 //*****************************************************************************
 //	FUNCTIONS
@@ -544,6 +551,10 @@ void CLIENT_Tick( void )
 //
 void CLIENT_EndTick( void )
 {
+	// Take in account cl_ticsperupdate the next time we send a movement command.
+	if ( g_ServerGameticOffset < cl_ticsperupdate - 1 )
+		g_ServerGameticOffset++;
+
 	// [TP] Do we want to change our weapon or use an item or something like that?
 	if ( SendItemUse )
 	{
@@ -738,7 +749,17 @@ int CLIENT_GetLatestServerGametic( void )
 void CLIENT_SetLatestServerGametic( int latestServerGametic )
 {
 	if ( latestServerGametic >= 0 )
+	{
 		g_lLatestServerGametic = latestServerGametic;
+		g_ServerGameticOffset = 0;
+	}
+}
+
+//*****************************************************************************
+//
+int CLIENT_GetServerGameticOffset( void )
+{
+	return g_ServerGameticOffset;
 }
 
 //*****************************************************************************
@@ -814,7 +835,9 @@ void CLIENT_AttemptConnection( void )
 	g_lHighestReceivedSequence = -1;
 
 	g_lMissingPacketTicks = 0;
-	g_lLatestServerGametic = 0; // [CK] Reset this here since we plan on connecting to a new server
+
+	// [CK] Reset this here since we plan on connecting to a new server
+	CLIENT_SetLatestServerGametic( 0 );
 
 	 // Send connection signal to the server.
 	NETWORK_WriteByte( &g_LocalBuffer.ByteStream, CLCC_ATTEMPTCONNECTION );
@@ -1125,6 +1148,7 @@ void CLIENT_CheckForMissingPackets( void )
 					fprintf( debugfile, "Missing packet %d.\n", static_cast<int> (lIdx) );
 
 				NETWORK_WriteLong( &g_LocalBuffer.ByteStream, lIdx );
+				CLIENTSTATISTICS_AddToMissingPacketsRequested ( 1 );
 			}
 		}
 
@@ -1374,12 +1398,12 @@ void CLIENT_ProcessCommand( LONG lCommand, BYTESTREAM_s *pByteStream )
 				// [TP] Is this a master ban?
 				if ( !!NETWORK_ReadByte( pByteStream ))
 				{
-					szErrorString = "Couldn't connect. \\cgYou have been banned from " GAMENAME "'s master server!\\c-\n"
+					szErrorString = "Couldn't connect. " TEXTCOLOR_RED "You have been banned from " GAMENAME "'s master server!" TEXTCOLOR_NORMAL "\n"
 						"If you feel this is in error, you may contact the staff at " FORUM_URL;
 				}
 				else
 				{
-					szErrorString = "Couldn't connect. \\cgYou have been banned from this server!\\c-";
+					szErrorString = "Couldn't connect. " TEXTCOLOR_RED "You have been banned from this server!" TEXTCOLOR_NORMAL;
 
 					// [RC] Read the reason for this ban.
 					const char		*pszBanReason = NETWORK_ReadString( pByteStream );
@@ -1750,10 +1774,6 @@ void CLIENT_ProcessCommand( LONG lCommand, BYTESTREAM_s *pByteStream )
 
 		client_EarthQuake( pByteStream );
 		break;
-	case SVC_DOSCROLLER:
-
-		client_DoScroller( pByteStream );
-		break;
 	case SVC_SETSCROLLER:
 
 		client_SetScroller( pByteStream );
@@ -2046,7 +2066,7 @@ void CLIENT_ProcessCommand( LONG lCommand, BYTESTREAM_s *pByteStream )
 					// [TP] Only allow the server to set mod CVARs.
 					FBaseCVar* cvar = FindCVar( cvarName, NULL );
 
-					if (( cvar == NULL ) || (( cvar->GetFlags() & CVAR_MOD ) == 0 ))
+					if (( cvar == NULL ) || (( cvar->GetFlags() & ( CVAR_MOD | CVAR_SERVERINFO | CVAR_SENSITIVESERVERSETTING )) == 0 ))
 					{
 						CLIENT_PrintWarning( "SVC2_SETCVAR: The server attempted to set the value of "
 							"%s to \"%s\"\n", cvarName.GetChars(), cvarValue.GetChars() );
@@ -2130,6 +2150,32 @@ void CLIENT_ProcessCommand( LONG lCommand, BYTESTREAM_s *pByteStream )
 
 					if ( actor && tpl )
 						ShootDecal( tpl, actor, actor->Sector, actor->x, actor->y, z, angle, tracedist, permanent );
+				}
+				break;
+
+			// [TP]
+			case SVC2_RCONACCESS:
+				if ( NETWORK_ReadByte( pByteStream ) )
+				{
+					if ( CLIENT_HasRCONAccess() == false )
+					{
+						// The server will send all server setting CVars that are not at default value. So, to ensure
+						// the rest are correct, we reset them now.
+						// NOTE: This is done before g_HasRCONAccess is set or the client would instead tell the server
+						// to reset the CVars.
+						for ( FBaseCVar* cvar = CVars; cvar; cvar = cvar->GetNext() )
+						{
+							if ( cvar->IsServerCVar() )
+								cvar->ResetToDefault();
+						}
+					}
+
+					g_HasRCONAccess = true;
+					M_RconAccessGranted();
+				}
+				else
+				{
+					g_HasRCONAccess = false;
 				}
 				break;
 
@@ -2341,46 +2387,20 @@ void CLIENT_WaitForServer( void )
 //
 void CLIENT_AuthenticateLevel( const char *pszMapName )
 {
-	FString		Checksum;
-	MapData		*pMap;
-
 	// [BB] Check if the wads contain the map at all. If not, don't send any checksums.
-	pMap = P_OpenMapData( pszMapName, false );
+	MapData *map = P_OpenMapData( pszMapName, false );
 
-	if ( pMap == NULL )
+	if ( map )
+	{
+		BYTE checksum[16];
+		map->GetChecksum( checksum );
+		NETWORK_WriteBuffer( &g_LocalBuffer.ByteStream, checksum, sizeof checksum );
+		delete map;
+	}
+	else
 	{
 		Printf( "CLIENT_AuthenticateLevel: Map %s not found!\n", pszMapName );
-		return;
 	}
-
-	// [Dusk] Include a byte to check if this is an UDMF or a non-UDMF map.
-	NETWORK_WriteByte( &g_LocalBuffer.ByteStream, pMap->isText );
-
-	if ( pMap->isText )
-	{
-		// [Dusk] If this is an UDMF map, send the TEXTMAP checksum.
-		NETWORK_GenerateMapLumpMD5Hash( pMap, ML_TEXTMAP, Checksum );
-		NETWORK_WriteString( &g_LocalBuffer.ByteStream, Checksum.GetChars() );
-	}
-	else
-	{
-		// Generate and send checksums for the map lumps.
-		const int ids[4] = { ML_VERTEXES, ML_LINEDEFS, ML_SIDEDEFS, ML_SECTORS };
-		for( ULONG i = 0; i < 4; ++i )
-		{
-			NETWORK_GenerateMapLumpMD5Hash( pMap, ids[i], Checksum );
-			NETWORK_WriteString( &g_LocalBuffer.ByteStream, Checksum.GetChars() );
-		}
-	}
-
-	if ( pMap->HasBehavior )
-		NETWORK_GenerateMapLumpMD5Hash( pMap, ML_BEHAVIOR, Checksum );
-	else
-		Checksum = "";
-	NETWORK_WriteString( &g_LocalBuffer.ByteStream, Checksum.GetChars() );
-
-	// Finally, free the map.
-	delete ( pMap );
 }
 
 //*****************************************************************************
@@ -2450,8 +2470,14 @@ AActor *CLIENT_SpawnThing( const PClass *pType, fixed_t X, fixed_t Y, fixed_t Z,
 	{
 		// [BB] Calling StaticSpawn with "levelThing == true" will prevent
 		// BeginPlay from being called on pActor, so we have to do this manually.
-		if ( levelThing )
+		// [EP] Don't forget to drop the DROPPED flag if it wasn't present. See the comment in AActor::LevelSpawned for the reason.
+		if ( levelThing ) {
 			pActor->BeginPlay ();
+			if (!(pActor->GetDefault()->flags & MF_DROPPED))
+			{
+				pActor->flags &= ~MF_DROPPED;
+			}
+		}
 
 		pActor->lNetID = lNetID;
 		g_NetIDList.useID ( lNetID, pActor );
@@ -2574,9 +2600,7 @@ void CLIENT_MoveThing( AActor *pActor, fixed_t X, fixed_t Y, fixed_t Z )
 //
 void CLIENT_AdjustPredictionToServerSideConsolePlayerMove( fixed_t X, fixed_t Y, fixed_t Z )
 {
-	players[consoleplayer].ServerXYZ[0] = X;
-	players[consoleplayer].ServerXYZ[1] = Y;
-	players[consoleplayer].ServerXYZ[2] = Z;
+	CLIENT_PREDICT_SetPosition( X, Y, Z );
 	CLIENT_PREDICT_PlayerTeleported( );
 }
 
@@ -2603,6 +2627,12 @@ bool CLIENT_CanClipMovement( AActor *pActor )
 		return false;
 
 	return true;
+}
+
+//*****************************************************************************
+bool CLIENT_HasRCONAccess()
+{
+	return g_HasRCONAccess;
 }
 
 //*****************************************************************************
@@ -2906,11 +2936,13 @@ void PLAYER_ResetPlayerData( player_t *pPlayer )
 	{
 		pPlayer->userinfo.Reset();
 	}
+	else
+	{
+		CLIENT_PREDICT_Construct();
+	}
 	memset( pPlayer->psprites, 0, sizeof( pPlayer->psprites ));
 
 	memset( &pPlayer->ulMedalCount, 0, sizeof( ULONG ) * NUM_MEDALS );
-	memset( &pPlayer->ServerXYZ, 0, sizeof( fixed_t ) * 3 );
-	memset( &pPlayer->ServerXYZVel, 0, sizeof( fixed_t ) * 3 );
 }
 
 //*****************************************************************************
@@ -3545,14 +3577,11 @@ void ServerCommands::SpawnPlayer::Execute()
 	}
 
 
-	// If this is the consoleplayer, set the realorigin and ServerXYZMom.
+	// If this is the consoleplayer, set the prediction origin and velocity.
 	if ( ulPlayer == static_cast<ULONG>(consoleplayer) )
 	{
 		CLIENT_AdjustPredictionToServerSideConsolePlayerMove( pPlayer->mo->x, pPlayer->mo->y, pPlayer->mo->z );
-
-		pPlayer->ServerXYZVel[0] = 0;
-		pPlayer->ServerXYZVel[1] = 0;
-		pPlayer->ServerXYZVel[2] = 0;
+		CLIENT_PREDICT_SetVelocity( 0, 0, 0 );
 	}
 
 	// [BB] Now that we have our inventory, tell the server the weapon we selected from it.
@@ -4276,13 +4305,8 @@ void ServerCommands::MoveLocalPlayer::Execute()
 	// Now that everything's check out, update stuff.
 	if ( pPlayer->bSpectating == false )
 	{
-		pPlayer->ServerXYZ[0] = x;
-		pPlayer->ServerXYZ[1] = y;
-		pPlayer->ServerXYZ[2] = z;
-
-		pPlayer->ServerXYZVel[0] = velx;
-		pPlayer->ServerXYZVel[1] = vely;
-		pPlayer->ServerXYZVel[2] = velz;
+		CLIENT_PREDICT_SetPosition( x, y, z );
+		CLIENT_PREDICT_SetVelocity( velx, vely, velz );
 	}
 	else
 	{
@@ -4294,6 +4318,23 @@ void ServerCommands::MoveLocalPlayer::Execute()
 		pPlayer->mo->vely = vely;
 		pPlayer->mo->velz = velz;
 	}
+}
+
+//*****************************************************************************
+//
+void ServerCommands::SetLocalPlayerJumpTics::Execute()
+{
+	player_t *pPlayer = &players[consoleplayer];
+
+	// Older update, ignore.
+	if ( clientTicOnServerEnd < CLIENT_GetLastConsolePlayerUpdateTick( ))
+		return;
+
+	// "ulClientTicOnServerEnd" is the gametic of the last time we sent a movement command.
+	CLIENT_SetLastConsolePlayerUpdateTick( clientTicOnServerEnd );
+
+	// Now that everything's check out, update stuff.
+	CLIENT_PREDICT_SetJumpTics( jumpTics );
 }
 
 //*****************************************************************************
@@ -4699,12 +4740,7 @@ void ServerCommands::MoveThing::Execute()
 
 	// If the server is moving us, don't let our prediction get messed up.
 	if ( actor == players[consoleplayer].mo )
-	{
-		players[consoleplayer].ServerXYZ[0] = x;
-		players[consoleplayer].ServerXYZ[1] = y;
-		players[consoleplayer].ServerXYZ[2] = z;
-		CLIENT_PREDICT_PlayerTeleported( );
-	}
+		CLIENT_AdjustPredictionToServerSideConsolePlayerMove( x, y, z );
 }
 
 //*****************************************************************************
@@ -6889,6 +6925,16 @@ void ServerCommands::SetMapSky::Execute()
 
 //*****************************************************************************
 //
+void ServerCommands::SetMapSkyScrollSpeed::Execute()
+{
+	if ( isSky1 )
+		level.skyspeed1 = value;
+	else
+		level.skyspeed2 = value;
+}
+
+//*****************************************************************************
+//
 static void client_GiveInventory( BYTESTREAM_s *pByteStream )
 {
 	const PClass	*pType;
@@ -8632,50 +8678,36 @@ static void client_EarthQuake( BYTESTREAM_s *pByteStream )
 
 //*****************************************************************************
 //
-static void client_DoScroller( BYTESTREAM_s *pByteStream )
+void ServerCommands::DoScroller::Execute()
 {
-	DScroller::EScrollType	Type;
-	fixed_t					dX;
-	fixed_t					dY;
-	LONG					lAffectee;
-
-	// Read in the type of scroller.
-	Type = (DScroller::EScrollType)NETWORK_ReadByte( pByteStream );
-
-	// Read in the X speed.
-	dX = NETWORK_ReadLong( pByteStream );
-
-	// Read in the Y speed.
-	dY = NETWORK_ReadLong( pByteStream );
-
-	// Read in the sector/side being scrolled.
-	lAffectee = NETWORK_ReadLong( pByteStream );
+	int control = ContainsSector() ? (int)(sector - sectors) : -1;
+	int position = ContainsPos() ? pos : DScroller::scw_all;
 
 	// Check to make sure what we've read in is valid.
 	// [BB] sc_side is allowed, too, but we need to make a different check for it.
-	if (( Type != DScroller::sc_floor ) && ( Type != DScroller::sc_ceiling ) &&
-		( Type != DScroller::sc_carry ) && ( Type != DScroller::sc_carry_ceiling ) && ( Type != DScroller::sc_side ) )
+	if (( type != DScroller::sc_floor ) && ( type != DScroller::sc_ceiling ) &&
+		( type != DScroller::sc_carry ) && ( type != DScroller::sc_carry_ceiling ) && ( type != DScroller::sc_side ) )
 	{
-		CLIENT_PrintWarning( "client_DoScroller: Unknown type: %d!\n", static_cast<int> (Type) );
+		CLIENT_PrintWarning( "client_DoScroller: Unknown type: %d!\n", static_cast<int> (type) );
 		return;
 	}
 
-	if( Type == DScroller::sc_side )
+	if ( type == DScroller::sc_side )
 	{
-		if (( lAffectee < 0 ) || ( lAffectee >= numsides ))
+		if (( affectee < 0 ) || ( affectee >= numsides ))
 		{
-			CLIENT_PrintWarning( "client_DoScroller: Invalid side ID: %ld!\n", lAffectee );
+			CLIENT_PrintWarning( "client_DoScroller: Invalid side ID: %ld!\n", affectee );
 			return;
 		}
 	}
-	else if (( lAffectee < 0 ) || ( lAffectee >= numsectors ))
+	else if (( affectee < 0 ) || ( affectee >= numsectors ))
 	{
-		CLIENT_PrintWarning( "client_DoScroller: Invalid sector ID: %ld!\n", lAffectee );
+		CLIENT_PrintWarning( "client_DoScroller: Invalid sector ID: %ld!\n", affectee );
 		return;
 	}
 
 	// Finally, create the scroller.
-	new DScroller( Type, dX, dY, -1, lAffectee, 0 );
+	new DScroller( (DScroller::EScrollType)type, x, y, control, affectee, (int)accel, position );
 }
 
 //*****************************************************************************
@@ -8913,7 +8945,7 @@ static void client_IgnorePlayer( BYTESTREAM_s *pByteStream )
 		players[ulPlayer].bIgnoreChat = true;
 		players[ulPlayer].lIgnoreChatTicks = lTicks;
 
-		Printf( "%s\\c- will be ignored, because you're ignoring %s IP.\n", players[ulPlayer].userinfo.GetName(), players[ulPlayer].userinfo.GetGender() == GENDER_MALE ? "his" : players[ulPlayer].userinfo.GetGender() == GENDER_FEMALE ? "her" : "its" );
+		Printf( "%s will be ignored, because you're ignoring %s IP.\n", players[ulPlayer].userinfo.GetName(), players[ulPlayer].userinfo.GetGender() == GENDER_MALE ? "his" : players[ulPlayer].userinfo.GetGender() == GENDER_FEMALE ? "her" : "its" );
 	}
 }
 

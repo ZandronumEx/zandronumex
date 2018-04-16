@@ -248,7 +248,7 @@ bool CheckIfExitIsGood (AActor *self, level_info_t *info)
 		if (( self->player != NULL ) && ( self->player->mo == self ))
 		{
 			// [K6/BB] The server should let the clients know who exited the level.
-			NETWORK_Printf ("%s \\c-exited the level.\n", self->player->userinfo.GetName());
+			NETWORK_Printf ("%s exited the level.\n", self->player->userinfo.GetName());
 		}
 	}
 	return true;
@@ -1575,7 +1575,7 @@ void P_SpawnSpecials (void)
 			if ((sector->special & 0xff) >= Scroll_North_Slow &&
 				(sector->special & 0xff) <= Scroll_SouthWest_Fast)
 			{ // Hexen scroll special
-				static const char hexenScrollies[24][2] =
+				static const SBYTE hexenScrollies[24][2] =
 				{
 					{  0,  1 }, {  0,  2 }, {  0,  4 },
 					{ -1,  0 }, { -2,  0 }, { -4,  0 },
@@ -1928,7 +1928,7 @@ void DScroller::UpdateToClient( ULONG ulClient )
 	case sc_ceiling:
 	case sc_carry_ceiling:
 
-		SERVERCOMMANDS_DoScroller( m_Type, m_dx, m_dy, m_Affectee, ulClient, SVCF_ONLYTHISCLIENT );
+		SERVERCOMMANDS_DoScroller( m_Type, m_dx, m_dy, m_Affectee, !!m_Accel, m_Control, m_Parts, ulClient, SVCF_ONLYTHISCLIENT );
 		break;
 	}
 }
@@ -2762,6 +2762,10 @@ static void P_SpawnPushers ()
 	int i;
 	line_t *l = lines;
 	register int s;
+
+	// [Leo] The server takes care of the pushers.
+	if ( NETWORK_InClientMode() )
+		return;
 
 	for (i = 0; i < numlines; i++, l++)
 	{

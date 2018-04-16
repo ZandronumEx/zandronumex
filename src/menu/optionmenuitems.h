@@ -35,6 +35,7 @@
 
 void M_DrawConText (int color, int x, int y, const char *str);
 void M_SetVideoMode();
+extern bool ParsingMenuDef; // needed to stop some skulldruggery
 
 
 
@@ -86,7 +87,9 @@ public:
 	bool Activate()
 	{
 		S_Sound (CHAN_VOICE | CHAN_UI, "menu/choose", snd_menuvolume, ATTN_NONE);
+		ParsingMenuDef = true;
 		C_DoCommand(mAction);
+		ParsingMenuDef = false;
 		return true;
 	}
 
@@ -111,7 +114,9 @@ public:
 	{
 		if (mkey == MKEY_MBYes)
 		{
+			ParsingMenuDef = true;
 			C_DoCommand(mAction);
+			ParsingMenuDef = false;
 			return true;
 		}
 		return FOptionMenuItemCommand::MenuEvent(mkey, fromcontroller);
@@ -325,9 +330,9 @@ public:
 	}
 
 	// [TP]
-	bool IsServerInfo() const
+	bool IsServerCVar() const override
 	{
-		return mCVar && mCVar->IsServerInfo();
+		return mCVar && mCVar->IsServerCVar();
 	}
 };
 
@@ -753,9 +758,9 @@ public:
 	}
 
 	// [TP]
-	bool IsServerInfo() const
+	bool IsServerCVar() const override
 	{
-		return mCVar && mCVar->IsServerInfo();
+		return mCVar && mCVar->IsServerCVar();
 	}
 };
 
@@ -855,9 +860,9 @@ public:
 	}
 
 	// [TP]
-	bool IsServerInfo() const
+	bool IsServerCVar() const override
 	{
-		return mCVar && mCVar->IsServerInfo();
+		return mCVar && mCVar->IsServerCVar();
 	}
 };
 
@@ -1069,9 +1074,9 @@ public:
 		return false;
 	}
 
-	bool IsServerInfo() const
+	bool IsServerCVar() const override
 	{
-		return mCVar && mCVar->IsServerInfo();
+		return mCVar && mCVar->IsServerCVar();
 	}
 
 	bool Selectable()

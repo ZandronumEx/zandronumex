@@ -364,12 +364,12 @@ void ClientObituary (AActor *self, AActor *inflictor, AActor *attacker, int dmgf
 
 	// [BC] Stop the color codes after we display a name in the obituary string.
 	if ( attacker && attacker->player )
-		sprintf( szAttacker, "%s\\c-", attacker->player->userinfo.GetName() );
+		sprintf( szAttacker, "%s", attacker->player->userinfo.GetName() );
 	else
 		szAttacker[0] = 0;
 
 	if ( self && self->player )
-		sprintf( szVictim, "%s\\c-", self->player->userinfo.GetName() );
+		sprintf( szVictim, "%s", self->player->userinfo.GetName() );
 	else
 		szVictim[0] = 0;
 
@@ -611,9 +611,9 @@ void AActor::Die (AActor *source, AActor *inflictor, int dmgflags)
 				{
 					NETWORK_Printf( "%s\n", GStrings( "TXT_FRAGLIMIT" ));
 					if ( teamplay && ( source->player->bOnTeam ))
-						NETWORK_Printf( "%s \\c-wins!\n", TEAM_GetName( source->player->ulTeam ));
+						NETWORK_Printf( "%s wins!\n", TEAM_GetName( source->player->ulTeam ));
 					else
-						NETWORK_Printf( "%s \\c-wins!\n", source->player->userinfo.GetName() );
+						NETWORK_Printf( "%s wins!\n", source->player->userinfo.GetName() );
 
 					if (( NETWORK_GetState( ) != NETSTATE_SERVER )
 						&& ( duel == false )
@@ -2288,7 +2288,7 @@ void PLAYER_GivePossessionPoint( player_t *pPlayer )
 	{
 		if ( possession && ( pPlayer->lPointCount >= pointlimit ))
 		{
-			NETWORK_Printf( "Pointlimit hit.\n%s \\c-wins!\n", pPlayer->userinfo.GetName() );
+			NETWORK_Printf( "Pointlimit hit.\n%s wins!\n", pPlayer->userinfo.GetName() );
 
 			if (( NETWORK_GetState() != NETSTATE_SERVER ) && pPlayer->mo->CheckLocalView( consoleplayer ))
 				ANNOUNCER_PlayEntry( cl_announcer, "YouWin" );
@@ -2297,7 +2297,7 @@ void PLAYER_GivePossessionPoint( player_t *pPlayer )
 			if (( NETWORK_GetState( ) == NETSTATE_SINGLE_MULTIPLAYER ) && ( pPlayer->mo->CheckLocalView( consoleplayer )))
 				sprintf( szString, "YOU WIN!" );
 			else
-				sprintf( szString, "%s \\c-WINS!", pPlayer->userinfo.GetName() );
+				sprintf( szString, "%s WINS!", pPlayer->userinfo.GetName() );
 			V_ColorizeString( szString );
 
 			if ( NETWORK_GetState( ) != NETSTATE_SERVER )
@@ -2324,7 +2324,7 @@ void PLAYER_GivePossessionPoint( player_t *pPlayer )
 		}
 		else if ( teampossession && ( TEAM_GetScore( pPlayer->ulTeam ) >= pointlimit ))
 		{
-			NETWORK_Printf( "Pointlimit hit.\n%s \\c-wins!\n", TEAM_GetName( pPlayer->ulTeam ));
+			NETWORK_Printf( "Pointlimit hit.\n%s wins!\n", TEAM_GetName( pPlayer->ulTeam ));
 
 			if (( NETWORK_GetState() != NETSTATE_SERVER ) && pPlayer->mo->IsTeammate( players[consoleplayer].camera ))
 				ANNOUNCER_PlayEntry( cl_announcer, "YouWin" );
@@ -2424,7 +2424,7 @@ void PLAYER_SetTeam( player_t *pPlayer, ULONG ulTeam, bool bNoBroadcast )
 		// Player has changed his team! Tell clients.
 		if ( bBroadcastChange )
 		{
-			SERVER_Printf( "%s \\c-joined the \\c%c%s \\c-team.\n", pPlayer->userinfo.GetName(), V_GetColorChar( TEAM_GetTextColor( ulTeam ) ), TEAM_GetName( ulTeam )); 
+			SERVER_Printf( "%s joined the \034%c%s " TEXTCOLOR_NORMAL "team.\n", pPlayer->userinfo.GetName(), V_GetColorChar( TEAM_GetTextColor( ulTeam ) ), TEAM_GetName( ulTeam ));
 		}		
 	}
 
@@ -2522,7 +2522,7 @@ void PLAYER_SetSpectator( player_t *pPlayer, bool bBroadcast, bool bDeadSpectato
 				if ( bBroadcast )
 				{
 					// Send out a message saying this player joined the spectators.
-					NETWORK_Printf( "%s \\c-joined the spectators.\n", pPlayer->userinfo.GetName() );
+					NETWORK_Printf( "%s joined the spectators.\n", pPlayer->userinfo.GetName() );
 				}
 
 				// This player no longer has a team affiliation.
@@ -2602,7 +2602,9 @@ void PLAYER_SetSpectator( player_t *pPlayer, bool bBroadcast, bool bDeadSpectato
 			pOldBody = pPlayer->mo;
 			// [BB] This also transfers the inventory from the old to the new body.
 			players[pPlayer - players].playerstate = ( zadmflags & ZADF_DEAD_PLAYERS_CAN_KEEP_INVENTORY ) ? PST_REBORN : PST_REBORNNOINVENTORY;
+			const bool bSpawnOkay = pPlayer->bSpawnOkay;	// [EP] Save the same-spot spawn information, since it'll be lost when GAMEMODE_SpawnPlayer is called.
 			GAMEMODE_SpawnPlayer( pPlayer - players );
+			pPlayer->bSpawnOkay = bSpawnOkay;	// [EP]
 
 			// Set the player's new body to the position of his or her old body.
 			if (( pPlayer->mo ) &&
@@ -2641,7 +2643,7 @@ void PLAYER_SetSpectator( player_t *pPlayer, bool bBroadcast, bool bDeadSpectato
 		if (( bDeadSpectator == false ) && bBroadcast )
 		{
 			// Send out a message saying this player joined the spectators.
-			NETWORK_Printf( "%s \\c-joined the spectators.\n", pPlayer->userinfo.GetName() );
+			NETWORK_Printf( "%s joined the spectators.\n", pPlayer->userinfo.GetName() );
 		}
 	}
 
@@ -2827,14 +2829,6 @@ void PLAYER_SetWins( player_t *pPlayer, ULONG ulWins )
 		SERVERCONSOLE_UpdatePlayerInfo( pPlayer - players, UDF_FRAGS );
 		SERVERCONSOLE_UpdateScoreboard( );
 	}
-}
-
-//*****************************************************************************
-//
-void PLAYER_GetName( player_t *pPlayer, char *pszOutBuf )
-{
-	// Build the buffer, which has a "remove color code" tag at the end of it.
-	sprintf( pszOutBuf, "%s\\c-", pPlayer->userinfo.GetName() );
 }
 
 //*****************************************************************************

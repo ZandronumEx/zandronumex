@@ -56,40 +56,87 @@
 #include "doomstat.h"
 
 //*****************************************************************************
+//	CLASSES
+
+// [BB]
+class StatTracker
+{
+	unsigned int _value;
+	unsigned int _valueThisTick;
+	unsigned int _valueThisSecond;
+	unsigned int _valueLastSecond;
+	unsigned int _maxValuePerSecond;
+public:
+	StatTracker ( )
+	{
+		Clear ( );
+	}
+
+	void Clear ( )
+	{
+		_value = 0;
+		_valueThisTick = 0;
+		_valueThisSecond = 0;
+		_valueLastSecond = 0;
+		_maxValuePerSecond = 0;
+	}
+
+	void AddToTic ( const int Value )
+	{
+		_valueThisTick += Value;
+	}
+
+	void TicPassed ( )
+	{
+		_value += _valueThisTick;
+		_valueThisSecond += _valueThisTick;
+		_valueThisTick = 0;
+	}
+
+	void SecondPassed ( )
+	{
+		_valueLastSecond = _valueThisSecond;
+		_valueThisSecond = 0;
+		if ( _maxValuePerSecond < _valueLastSecond )
+			_maxValuePerSecond = _valueLastSecond;
+	}
+
+	unsigned int getTotalValue ( ) const
+	{
+		return _value;
+	}
+
+	unsigned int getValueThisTick ( ) const
+	{
+		return _valueThisTick;
+	}
+
+	unsigned int getValueLastSecond ( ) const
+	{
+		return _valueLastSecond;
+	}
+
+	unsigned int getMaxValuePerSecond ( ) const
+	{
+		return _maxValuePerSecond;
+	}
+};
+
+//*****************************************************************************
 //	VARIABLES
 
-// Number of bytes sent/received this tick from the server.
-static	LONG				g_lBytesSentThisTick;
-static	LONG				g_lBytesReceivedThisTick;
-
-// Total number of bytes sent/received this second.
-static	LONG				g_lBytesSentThisSecond;
-static	LONG				g_lBytesReceivedThisSecond;
-
-// Total number of bytes sent/received the previous second.
-static	LONG				g_lBytesSentLastSecond;
-static	LONG				g_lBytesReceivedLastSecond;
-
-// This is the maximum number of bytes per second we've send/received.
-static	LONG				g_lMaxBytesSentPerSecond;
-static	LONG				g_lMaxBytesReceivedPerSecond;
+static	StatTracker			g_bytesSentStatTracker;
+static	StatTracker			g_bytesReceivedStatTracker;
+static	StatTracker			g_missingPacketsRequestedStatTracker;
 
 //*****************************************************************************
 //	FUNCTIONS
 
 void CLIENTSTATISTICS_Construct( void )
 {
-	g_lBytesSentThisTick = 0;
-	g_lBytesReceivedThisTick = 0;
-
-	g_lBytesSentThisSecond = 0;
-	g_lBytesReceivedThisSecond = 0;
-
-	g_lBytesSentLastSecond = 0;
-	g_lBytesReceivedLastSecond = 0;
-
-	g_lMaxBytesSentPerSecond = 0;
-	g_lMaxBytesReceivedPerSecond = 0;
+	g_bytesSentStatTracker.Clear();
+	g_bytesReceivedStatTracker.Clear();
+	g_missingPacketsRequestedStatTracker.Clear();
 }
 
 //*****************************************************************************
@@ -97,25 +144,17 @@ void CLIENTSTATISTICS_Construct( void )
 void CLIENTSTATISTICS_Tick( void )
 {
 	// Add to the number of bytes sent/received this second.
-	g_lBytesSentThisSecond += g_lBytesSentThisTick;
-	g_lBytesReceivedThisSecond += g_lBytesReceivedThisTick;
-	g_lBytesSentThisTick = 0;
-	g_lBytesReceivedThisTick = 0;
+	g_bytesSentStatTracker.TicPassed();
+	g_bytesReceivedStatTracker.TicPassed();
+	g_missingPacketsRequestedStatTracker.TicPassed();
 
 	// Every second, update the number of bytes sent last second with the number of bytes
 	// sent this second, and then reset the number of bytes sent this second.
 	if (( gametic % TICRATE ) == 0 )
 	{
-		g_lBytesSentLastSecond = g_lBytesSentThisSecond;
-		g_lBytesReceivedLastSecond = g_lBytesReceivedThisSecond;
-
-		g_lBytesSentThisSecond = 0;
-		g_lBytesReceivedThisSecond = 0;
-
-		if ( g_lMaxBytesSentPerSecond < g_lBytesSentLastSecond )
-			g_lMaxBytesSentPerSecond = g_lBytesSentLastSecond;
-		if ( g_lMaxBytesReceivedPerSecond < g_lBytesReceivedLastSecond )
-			g_lMaxBytesReceivedPerSecond = g_lBytesReceivedLastSecond;
+		g_bytesSentStatTracker.SecondPassed ( );
+		g_bytesReceivedStatTracker.SecondPassed ( );
+		g_missingPacketsRequestedStatTracker.SecondPassed ( );
 	}
 }
 
@@ -123,14 +162,21 @@ void CLIENTSTATISTICS_Tick( void )
 //
 void CLIENTSTATISTICS_AddToBytesSent( ULONG ulBytes )
 {
-	g_lBytesSentThisTick += ulBytes;
+	g_bytesSentStatTracker.AddToTic ( ulBytes );
 }
 
 //*****************************************************************************
 //
 void CLIENTSTATISTICS_AddToBytesReceived( ULONG ulBytes )
 {
-	g_lBytesReceivedThisTick += ulBytes;
+	g_bytesReceivedStatTracker.AddToTic ( ulBytes );
+}
+
+//*****************************************************************************
+//
+void CLIENTSTATISTICS_AddToMissingPacketsRequested( unsigned int Num )
+{
+	g_missingPacketsRequestedStatTracker.AddToTic ( Num );
 }
 
 //*****************************************************************************
@@ -140,13 +186,15 @@ ADD_STAT( nettraffic )
 {
 	FString	Out;
 
-	Out.Format( "In: %5d/%5d/%5d        Out: %5d/%5d/%5d", 
-		static_cast<int> (g_lBytesReceivedThisTick),
-		static_cast<int> (g_lBytesReceivedLastSecond),
-		static_cast<int> (g_lMaxBytesReceivedPerSecond),
-		static_cast<int> (g_lBytesSentThisTick),
-		static_cast<int> (g_lBytesSentLastSecond),
-		static_cast<int> (g_lMaxBytesSentPerSecond) );
+	Out.Format( "In: %5d/%5d/%5d        Out: %5d/%5d/%5d        Loss: %5d/%5d", 
+		static_cast<int> (g_bytesReceivedStatTracker.getValueThisTick()),
+		static_cast<int> (g_bytesReceivedStatTracker.getValueLastSecond()),
+		static_cast<int> (g_bytesReceivedStatTracker.getMaxValuePerSecond()),
+		static_cast<int> (g_bytesSentStatTracker.getValueThisTick()),
+		static_cast<int> (g_bytesSentStatTracker.getValueLastSecond()),
+		static_cast<int> (g_bytesSentStatTracker.getMaxValuePerSecond()),
+		static_cast<int> (g_missingPacketsRequestedStatTracker.getValueLastSecond()),
+		static_cast<int> (g_missingPacketsRequestedStatTracker.getMaxValuePerSecond()) );
 
 	return ( Out );
 }

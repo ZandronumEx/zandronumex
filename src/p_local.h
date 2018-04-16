@@ -103,7 +103,7 @@ void P_DropWeapon (player_t* player);
 //
 void	P_FallingDamage (AActor *ent);
 bool	PLAYER_Responder( event_t *pEvent );
-void	P_PlayerThink (player_t *player, ticcmd_t *pCmd = NULL );
+void	P_PlayerThink (player_t *player);
 /*
 void	P_PredictPlayer (player_t *player);
 void	P_UnPredictPlayer ();
@@ -488,6 +488,9 @@ enum	// P_AimLineAttack flags
 	ALF_CHECKNONSHOOTABLE = 4,
 	ALF_CHECKCONVERSATION = 8,
 	ALF_NOFRIENDS = 16,
+
+	// [Proteh] Don't use backwards reconciliation
+	ALF_NOUNLAGGED = 32
 };
 
 enum	// P_LineAttack flags

@@ -3163,6 +3163,10 @@ void P_ZMovement (AActor *mo, fixed_t oldfloorz)
 					if ( ( zacompatflags & ZACOMPATF_SKULLTAG_JUMPING ) || mo->player->jumpTics < 0 || mo->velz < minvel)
 					{ // delay any jumping for a short while
 						mo->player->jumpTics = 7;
+
+						// [Leo] Inform the client of the jumpTics change.
+						if ( NETWORK_GetState() == NETSTATE_SERVER )
+							SERVERCOMMANDS_SetLocalPlayerJumpTics( mo->player - players );
 					}
 					if (mo->velz < minvel && !(mo->flags & MF_NOGRAVITY))
 					{
@@ -3991,10 +3995,9 @@ void AActor::Tick ()
 	// [BB] Voodoo dolls are an exemption.
 	if ( player && player->mo == this )
 	{
-		// In server mode, only allow the ticking of a player if he's a client currently
-		// having his movement commands executed.
+		// Only tick the body if we processed a movement command this tic.
 		if (( NETWORK_GetState( ) == NETSTATE_SERVER ) &&
-			( SERVER_GetCurrentClient( ) != ( player - players )) &&
+			( SERVER_GetClient( player - players )->lLastMoveTickProcess != gametic ) &&
 			( player->bIsBot == false ))
 		{
 			return;
